@@ -1,0 +1,41 @@
+import { z } from "zod";
+
+export const partyCreateSchema = z.object({
+  type: z.enum(["customer", "supplier"]).optional(),
+  code: z.string().min(1).max(30).optional(),
+  name: z.string().min(1, "Name is required").max(200),
+  contactName: z.string().max(150).optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().max(30).optional(),
+  address: z.string().max(300).optional(),
+  city: z.string().max(100).optional(),
+  taxNumber: z.string().max(50).optional(),
+  creditLimit: z.number().nonnegative().optional(),
+  currency: z.string().max(3).default("USD"),
+  notes: z.string().max(1000).optional(),
+  status: z.enum(["active", "inactive"]).default("active"),
+});
+
+export const partyUpdateSchema = partyCreateSchema.partial();
+
+export const partySchema = z.object({
+  id: z.string(),
+  type: z.enum(["customer", "supplier"]),
+  code: z.string(),
+  name: z.string(),
+  contactName: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  taxNumber: z.string().optional(),
+  creditLimit: z.number().optional(),
+  currency: z.string(),
+  notes: z.string().optional(),
+  status: z.enum(["active", "inactive"]),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type PartyCreateInput = z.infer<typeof partyCreateSchema>;
+export type PartyUpdateInput = z.infer<typeof partyUpdateSchema>;

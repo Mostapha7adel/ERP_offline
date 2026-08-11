@@ -1,0 +1,885 @@
+// =============================================================================
+// LedgerFlow — Database Schema (Prisma + SQLite)
+// =============================================================================
+//
+// Production-ready accounting schema designed in Third Normal Form (3NF).
+//
+// Design decisions
+// ---------------
+// * UUID primary keys generated in the application layer.
+// * Soft delete via `deletedAt` on every entity (global filter in repository).
+// * Timestamps `createdAt` / `updatedAt` on every entity.
+// * Multi-user (Users + Roles + Permissions via RBAC join tables).
+// * Future multi-company: every tenant-scoped table carries `companyId`.
+// * Money stored as REAL (Float). The application enforces 2-decimal rounding.
+// * Inventory movement log is append-only (ledger of truth); `StockItem` is a
+//   denormalized projection for fast reads.
+// * Invoices are discriminated by `type` (`sales` | `purchase`) so Sales and
+//   Purchases share one normalized line table.
+// * Audit logs are append-only and never mutated.
+// * Indexes cover every FK and the most common query paths.
+//
+// Enabling SQLite in the repository layer: swap each InMemoryRepository for a
+// Prisma-backed implementation behind the SAME BaseRepository contract.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["windows", "darwin-arm64", "darwin-x64"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+enum UserStatus {
+  active
+  inactive
+}
+
+enum PartyType {
+  customer
+  supplier
+}
+
+enum PartyStatus {
+  active
+  inactive
+}
+
+enum ProductType {
+  product
+  service
+}
+
+enum ProductStatus {
+  active
+  draft
+  archived
+}
+
+enum WarehouseStatus {
+  active
+  inactive
+}
+
+enum MovementType {
+  initial
+  purchase
+  sale
+  adjustment
+  transferIn
+  transferOut
+  return
+  writeOff
+}
+
+enum InvoiceType {
+  sales
+  purchase
+}
+
+enum InvoiceStatus {
+  draft
+  issued
+  partial
+  paid
+  void
+}
+
+enum PaymentMethod {
+  cash
+  bankTransfer
+  card
+  check
+  credit
+  other
+}
+
+enum TreasuryAccountType {
+  cash
+  bank
+  creditCard
+  paypal
+  other
+}
+
+enum TreasuryTxnType {
+  income
+  expense
+  transfer
+}
+
+enum AccountClass {
+  asset
+  liability
+  equity
+  revenue
+  expense
+}
+
+enum JournalStatus {
+  draft
+  posted
+  void
+}
+
+enum AssetStatus {
+  active
+  disposed
+  writtenOff
+}
+
+// -----------------------------------------------------------------------------
+// Multi-company (tenant) root
+// -----------------------------------------------------------------------------
+
+model Company {
+  id              String    @id @default(uuid())
+  name            String
+  legalName       String?
+  address         String?
+  phone           String?
+  email           String?
+  taxNumber       String?
+  currency        String    @default("EGP")
+  fiscalYearStart String    @default("01-01") // MM-DD
+  logoUrl         String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  users       User[]
+  roles       Role[]
+  parties     Party[]
+  categories  Category[]
+  products    Product[]
+  warehouses  Warehouse[]
+  stockItems  StockItem[]
+  movements   StockMovement[]
+  invoices    Invoice[]
+  treasuryAcc TreasuryAccount[]
+  treasuryTx  TreasuryTransaction[]
+  accounts    Account[]
+  costCenters CostCenter[]
+  journals    JournalEntry[]
+  assets      Asset[]
+  reports     Report[]
+  settings    Setting[]
+  backups     Backup[]
+  auditLogs   AuditLog[]
+  notifications Notification[] @relation("NotificationCompany")
+  networkWorkspaces NetworkWorkspace[]
+  networkDevices    NetworkDevice[]
+
+  @@index([name])
+}
+
+// -----------------------------------------------------------------------------
+// Identity & Access (multi-user, RBAC)
+// -----------------------------------------------------------------------------
+
+model User {
+  id                  String     @id @default(uuid())
+  companyId           String
+  name                String
+  email               String
+  passwordHash        String
+  roleId              String
+  status              UserStatus @default(active)
+  mustChangePassword  Boolean    @default(false)
+  phone               String?
+  jobTitle            String?
+  avatarUrl           String?
+  lastLoginAt         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  deletedAt           DateTime?
+
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      Role          @relation(fields: [roleId], references: [id])
+  sessions  AuthSession[]
+  auditLogs AuditLog[]    @relation("AuditActor")
+  notifications Notification[] @relation("NotificationActor")
+
+  @@unique([companyId, email])
+  @@index([companyId, roleId])
+  @@index([status])
+  @@index([email])
+}
+
+model Role {
+  id          String    @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  avatarUrl   String?
+  isSystem    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users       User[]
+  permissions RolePermission[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  companyId  String
+  kind       String   @default("info")
+  title      String
+  message    String
+  resource   String?
+  resourceId String?
+  actorId    String?
+  actorName  String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation("NotificationCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([companyId, read])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g. "customers:read", "*"
+  description String?
+  group       String? // e.g. "customers", "system"
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model AuthSession {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// -----------------------------------------------------------------------------
+// Parties: customers & suppliers (single normalized table, discriminated by type)
+// -----------------------------------------------------------------------------
+
+model Party {
+  id          String      @id @default(uuid())
+  companyId   String
+  type        PartyType
+  code        String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  taxNumber   String?
+  creditLimit Float? // currency units
+  currency    String      @default("EGP")
+  notes       String?
+  status      PartyStatus @default(active)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  salesInvoices    Invoice[]             @relation("SalesParty")
+  purchaseInvoices Invoice[]             @relation("PurchaseParty")
+  treasuryTx       TreasuryTransaction[]
+  stockMovements   StockMovement[]
+
+  @@unique([companyId, code])
+  @@index([companyId, type, status])
+  @@index([companyId, name])
+  @@index([type])
+}
+
+// -----------------------------------------------------------------------------
+// Catalog: categories, units, products
+// -----------------------------------------------------------------------------
+
+model Category {
+  id          String    @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Unit {
+  id        String    @id @default(uuid())
+  code      String    @unique // e.g. "pcs", "ream", "kg", "hr"
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  products Product[]
+}
+
+model Product {
+  id            String        @id @default(uuid())
+  companyId     String
+  sku           String
+  barcode       String?
+  name          String
+  description   String?
+  type          ProductType   @default(product)
+  categoryId    String?
+  brand         String?
+  unitId        String
+  purchasePrice Float         @default(0)
+  salePrice     Float         @default(0)
+  taxRate       Float         @default(0)
+  imageUrl      String?
+  trackStock    Boolean       @default(false)
+  reorderLevel  Float?
+  status        ProductStatus @default(draft)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category     Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unit         Unit            @relation(fields: [unitId], references: [id])
+  stockItems   StockItem[]
+  movements    StockMovement[]
+  invoiceLines InvoiceLine[]
+
+  @@unique([companyId, sku])
+  @@index([companyId, barcode])
+  @@index([companyId, status])
+  @@index([categoryId])
+  @@index([unitId])
+  @@index([name])
+}
+
+// -----------------------------------------------------------------------------
+// Warehouses & inventory
+// -----------------------------------------------------------------------------
+
+model Warehouse {
+  id        String          @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  address   String?
+  manager   String?
+  phone     String?
+  isDefault Boolean         @default(false)
+  status    WarehouseStatus @default(active)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+
+  company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stockItems StockItem[]
+  movements  StockMovement[]
+  invoices   Invoice[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+/// Denormalized read projection of on-hand quantity per (product, warehouse).
+model StockItem {
+  id               String    @id @default(uuid())
+  companyId        String
+  productId        String
+  warehouseId      String
+  quantityOnHand   Float     @default(0)
+  reservedQuantity Float     @default(0)
+  reorderLevel     Float     @default(0)
+  averageCost      Float     @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, warehouseId])
+  @@index([companyId, warehouseId])
+  @@index([reorderLevel])
+}
+
+/// Append-only inventory ledger. Source of truth for stock.
+model StockMovement {
+  id          String       @id @default(uuid())
+  companyId   String
+  productId   String
+  warehouseId String
+  partyId     String?
+  type        MovementType
+  quantity    Float // signed: positive in, negative out
+  reference   String?
+  referenceId String?
+  note        String?
+  cost        Float        @default(0)
+  createdBy   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  party     Party?    @relation(fields: [partyId], references: [id], onDelete: SetNull)
+
+  @@index([productId, warehouseId])
+  @@index([companyId, createdAt])
+  @@index([type])
+  @@index([referenceId])
+}
+
+// -----------------------------------------------------------------------------
+// Trade: sales & purchase invoices (discriminated), lines, payments
+// -----------------------------------------------------------------------------
+
+model Invoice {
+  id            String         @id @default(uuid())
+  companyId     String
+  type          InvoiceType
+  number        String
+  customerId    String?
+  supplierId    String?
+  invoiceDate   DateTime
+  dueDate       DateTime?
+  warehouseId   String?
+  subtotal      Float          @default(0)
+  discount      Float          @default(0)
+  tax           Float          @default(0)
+  total         Float          @default(0)
+  paidAmount    Float          @default(0)
+  received      Boolean        @default(false)
+  status        InvoiceStatus  @default(draft)
+  paymentMethod PaymentMethod?
+  notes         String?
+  createdBy     String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer  Party?           @relation("SalesParty", fields: [customerId], references: [id], onDelete: SetNull)
+  supplier  Party?           @relation("PurchaseParty", fields: [supplierId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?       @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines     InvoiceLine[]
+  payments  InvoicePayment[]
+
+  @@unique([companyId, number])
+  @@index([companyId, type, status])
+  @@index([companyId, invoiceDate])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([warehouseId])
+  @@index([status])
+}
+
+model InvoiceLine {
+  id          String    @id @default(uuid())
+  invoiceId   String
+  productId   String?
+  productName String
+  description String?
+  quantity    Float
+  unitPrice   Float
+  discount    Float     @default(0)
+  taxRate     Float     @default(0)
+  lineTotal   Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model InvoicePayment {
+  id        String        @id @default(uuid())
+  invoiceId String
+  accountId String
+  amount    Float
+  method    PaymentMethod @default(cash)
+  reference String?
+  paidAt    DateTime      @default(now())
+  createdBy String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+
+  invoice Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  account TreasuryAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId])
+  @@index([accountId])
+}
+
+// -----------------------------------------------------------------------------
+// Treasury: cash / bank / card accounts and their transactions
+// -----------------------------------------------------------------------------
+
+model TreasuryAccount {
+  id             String              @id @default(uuid())
+  companyId      String
+  name           String
+  type           TreasuryAccountType
+  currency       String              @default("EGP")
+  openingBalance Float               @default(0)
+  balance        Float               @default(0)
+  isActive       Boolean             @default(true)
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  deletedAt      DateTime?
+
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions TreasuryTransaction[]
+  payments     InvoicePayment[]
+
+  @@index([companyId, isActive])
+  @@index([type])
+}
+
+model TreasuryTransaction {
+  id          String          @id @default(uuid())
+  companyId   String
+  accountId   String
+  partyId     String?
+  partyType   PartyType?
+  type        TreasuryTxnType
+  amount      Float // always positive; direction encoded by `type`
+  category    String // e.g. "customer-payment", "rent", "sales"
+  reference   String?
+  referenceId String?
+  description String?
+  date        DateTime
+  createdBy   String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  account TreasuryAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  party   Party?          @relation(fields: [partyId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, date])
+  @@index([companyId, date])
+  @@index([partyId])
+  @@index([category])
+}
+
+// -----------------------------------------------------------------------------
+// Accounting: chart of accounts, cost centers, journal entries
+// -----------------------------------------------------------------------------
+
+model Account {
+  id             String       @id @default(uuid())
+  companyId      String
+  code           String
+  name           String
+  type           AccountClass
+  category       String // e.g. "Current Assets", "Revenue"
+  isActive       Boolean      @default(true)
+  openingBalance Float        @default(0)
+  parentId       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  company                      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent                       Account?        @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children                     Account[]       @relation("AccountHierarchy")
+  journalDetails               JournalDetail[]
+  assets                       Asset[]         @relation("AssetMainAccount")
+  assetAccumulatedDepreciation Asset[]         @relation("AssetAccumDep")
+  assetDepExpense              Asset[]         @relation("AssetDepExpense")
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+  @@index([parentId])
+}
+
+model CostCenter {
+  id          String    @id @default(uuid())
+  companyId   String
+  code        String
+  name        String
+  description String?
+  parentId    String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent         CostCenter?     @relation("CostCenterHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children       CostCenter[]    @relation("CostCenterHierarchy")
+  journalDetails JournalDetail[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model JournalEntry {
+  id          String        @id @default(uuid())
+  companyId   String
+  number      String
+  date        DateTime
+  memo        String?
+  status      JournalStatus @default(draft)
+  totalDebit  Float         @default(0)
+  totalCredit Float         @default(0)
+  createdBy   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   JournalDetail[]
+
+  @@unique([companyId, number])
+  @@index([companyId, date])
+  @@index([companyId, status])
+}
+
+model JournalDetail {
+  id           String    @id @default(uuid())
+  journalId    String
+  accountId    String
+  costCenterId String?
+  description  String?
+  debit        Float     @default(0)
+  credit       Float     @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  journal    JournalEntry @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  account    Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  costCenter CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+
+  @@index([journalId])
+  @@index([accountId])
+  @@index([costCenterId])
+}
+
+// -----------------------------------------------------------------------------
+// Fixed assets
+// -----------------------------------------------------------------------------
+
+model Asset {
+  id                               String      @id @default(uuid())
+  companyId                        String
+  code                             String
+  name                             String
+  category                         String?
+  purchaseDate                     DateTime?
+  cost                             Float       @default(0)
+  salvageValue                     Float       @default(0)
+  usefulLifeMonths                 Int         @default(0)
+  depreciationMethod               String      @default("straight-line")
+  currentValue                     Float       @default(0)
+  accountId                        String?
+  accumulatedDepreciationAccountId String?
+  depreciationExpenseAccountId     String?
+  status                           AssetStatus @default(active)
+  notes                            String?
+  createdAt                        DateTime    @default(now())
+  updatedAt                        DateTime    @updatedAt
+  deletedAt                        DateTime?
+
+  company                        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  account                        Account? @relation("AssetMainAccount", fields: [accountId], references: [id], onDelete: SetNull)
+  accumulatedDepreciationAccount Account? @relation("AssetAccumDep", fields: [accumulatedDepreciationAccountId], references: [id], onDelete: SetNull)
+  depreciationExpenseAccount     Account? @relation("AssetDepExpense", fields: [depreciationExpenseAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([accountId])
+}
+
+// -----------------------------------------------------------------------------
+// Reports: saved report definitions / dashboards
+// -----------------------------------------------------------------------------
+
+model Report {
+  id         String    @id @default(uuid())
+  companyId  String
+  name       String
+  type       String // "dashboard" | "sales" | "purchases" | "pnl" | "cashflow" | "aging" | "tax" | ...
+  config     String? // JSON config (filters, columns, grouping)
+  createdBy  String
+  isFavorite Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId, type])
+}
+
+// -----------------------------------------------------------------------------
+// Settings (key/value scoped to company)
+// -----------------------------------------------------------------------------
+
+model Setting {
+  id        String    @id @default(uuid())
+  companyId String
+  key       String // e.g. "company.name", "prefs.invoicePrefix"
+  value     String
+  group     String    @default("general")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@index([companyId, group])
+}
+
+// -----------------------------------------------------------------------------
+// Backups (history of database snapshots)
+// -----------------------------------------------------------------------------
+
+model Backup {
+  id          String    @id @default(uuid())
+  companyId   String
+  label       String
+  filePath    String? // location of the serialized snapshot
+  data        String? // JSON-serialized full database snapshot
+  sizeBytes   Int       @default(0)
+  recordCount Int       @default(0)
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+}
+
+// -----------------------------------------------------------------------------
+// Network (LAN workspace between devices on the same WiFi)
+// -----------------------------------------------------------------------------
+
+/// One active workspace per company: holds the join code other devices use to
+/// connect to the host (the super admin device).
+model NetworkWorkspace {
+  id           String   @id @default(uuid())
+  companyId    String
+  name         String
+  joinCode     String
+  hostDeviceId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId])
+  @@unique([joinCode])
+  @@index([companyId])
+}
+
+/// Registered devices: the host plus every client that joined. `deviceId` is a
+/// stable id generated once per installation; `token` authenticates heartbeats.
+model NetworkDevice {
+  id             String    @id @default(uuid())
+  companyId      String
+  deviceId       String
+  name           String
+  ip             String?
+  userAgent      String?
+  token          String?
+  currentUserId  String?
+  currentUserName String?
+  isHost         Boolean   @default(false)
+  lastSeenAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@unique([companyId, deviceId])
+  @@index([companyId])
+}
+
+// -----------------------------------------------------------------------------
+// Audit trail (append-only)
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  companyId  String
+  actorId    String?
+  actorEmail String
+  action     String // e.g. "create:customer", "pay:sales-invoice"
+  resource   String // e.g. "customer", "sales-invoice"
+  resourceId String?
+  ip         String?
+  details    String? // JSON payload of the change
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([actorId])
+  @@index([resource, resourceId])
+  @@index([action])
+}

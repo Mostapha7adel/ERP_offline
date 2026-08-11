@@ -1,0 +1,23 @@
+node_modules
+dist
+*.local
+.DS_Store
+npm-debug.log*
+
+# Tauri / Rust
+src-tauri/target
+src-tauri/gen
+src-tauri/binaries
+
+# Runtime secrets / data (local dev, if generated inside repo)
+jwt.secret
+ledgerflow.db
+ledgerflow.db.bak
+ledgerflow.db-wal
+ledgerflow.db-shm
+*.db
+*.db-wal
+*.db-shm
+*.db.bak
+query_engine-*.node
+tauri-backend.log

@@ -1,0 +1,17 @@
+export { DashboardPage } from "@/features/dashboard/dashboard-page";
+export { CustomersPage } from "@/features/parties/customers-page";
+export { SuppliersPage } from "@/features/parties/suppliers-page";
+export { ProductsPage } from "@/features/products/products-page";
+export { WarehousesPage } from "@/features/warehouses/warehouses-page";
+export { InventoryPage } from "@/features/inventory/inventory-page";
+export { SalesPage } from "@/features/trade/sales-page";
+export { PurchasesPage } from "@/features/trade/purchases-page";
+export { TreasuryPage } from "@/features/treasury/treasury-page";
+export { AccountingPage } from "@/features/accounting/accounting-page";
+export { ReportsPage } from "@/features/reports/reports-page";
+export { UsersPage } from "@/features/users/users-page";
+export { ProfilePage } from "@/features/profile/profile-page";
+export { SettingsPage } from "@/features/settings/settings-page";
+export { BackupPage } from "@/features/settings/backup-page";
+export { NotificationsPage } from "@/features/notifications/notifications-page";
+export { DevicesPage } from "@/features/network/devices-page";

@@ -1,0 +1,118 @@
+name: Build Releases
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-14
+            args: "--target aarch64-apple-darwin --bundles dmg,app"
+            backend-target: node22-macos-arm64
+            backend-out: ledgerflow-backend-arm64
+            sidecar-name: ledgerflow-backend-aarch64-apple-darwin
+            name: macos-arm64
+          - platform: macos-13
+            args: "--target x86_64-apple-darwin --bundles dmg,app"
+            backend-target: node22-macos-x64
+            backend-out: ledgerflow-backend-x64
+            sidecar-name: ledgerflow-backend-x86_64-apple-darwin
+            name: macos-x64
+          - platform: windows-latest
+            args: "--target x86_64-pc-windows-msvc --bundles nsis"
+            backend-target: node22-win-x64
+            backend-out: ledgerflow-backend.exe
+            sidecar-name: ledgerflow-backend-x86_64-pc-windows-msvc.exe
+            name: windows-x64
+
+    runs-on: ${{ matrix.platform }}
+    env:
+      BACKEND_TARGET: ${{ matrix.backend-target }}
+      BACKEND_OUT: ${{ matrix.backend-out }}
+      SIDECAR_NAME: ${{ matrix.sidecar-name }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install webkit2gtk 2>/dev/null || true
+            brew install librsvg 2>/dev/null || true
+          fi
+
+      - name: Setup Node (frontend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Node (backend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-14' && 'aarch64-apple-darwin' || matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || 'x86_64-pc-windows-msvc' }}
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma client (multi-platform engines)
+        working-directory: backend
+        run: npm run prisma:generate
+
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+      - name: Typecheck backend
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Build backend (esbuild bundle)
+        working-directory: backend
+        run: npm run bundle
+
+      - name: Package backend sidecar
+        working-directory: backend
+        run: npx pkg . --target $BACKEND_TARGET --output dist/$BACKEND_OUT
+
+      - name: Stage sidecar for Tauri
+        run: |
+          mkdir -p src-tauri/binaries
+          cp backend/dist/$BACKEND_OUT "src-tauri/binaries/$SIDECAR_NAME"
+          chmod +x "src-tauri/binaries/$SIDECAR_NAME" 2>/dev/null || true
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri app (${{ matrix.name }})
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "LedgerFlow ${{ github.ref_name }}"
+          releaseBody: "Automated release for ${{ matrix.name }}."
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

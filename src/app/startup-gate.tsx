@@ -1,0 +1,119 @@
+import { useEffect } from "react";
+import { useBackendStatus, type BackendStatus } from "@/lib/api/backend-status";
+import { hydrateAll } from "@/lib/api/hydration";
+import { getDeviceConfig, clearDeviceConfig } from "@/lib/api/config";
+import { useAuthStore } from "@/stores/auth-store";
+import { Button } from "@/shared/components/ui/button";
+import { AlertTriangle, LoaderCircle, Network, ShieldCheck } from "lucide-react";
+import { APP_NAME } from "@/config/app";
+import { AppLogo } from "@/shared/components/layout/app-logo";
+
+function BackendScreen({ status }: { status: BackendStatus }) {
+  if (status === "ready") return null;
+
+  if (status === "error") {
+    const isClient = getDeviceConfig().mode === "client";
+    if (isClient) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
+          <div className="mx-auto w-full max-w-sm space-y-4 rounded-2xl border bg-card p-8 text-center shadow-xl">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+              <Network className="size-6" />
+            </div>
+            <h1 className="text-lg font-semibold">Cannot reach the workspace host</h1>
+            <p className="text-sm text-muted-foreground">
+              This device is set to connect to a host on your network, but the
+              host computer is offline or the IP is wrong. Check that the host is
+              on, or switch back to using this device locally.
+            </p>
+            <div className="space-y-2">
+              <Button className="w-full" onClick={() => window.location.reload()}>
+                Retry
+              </Button>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => {
+                  clearDeviceConfig();
+                  window.location.reload();
+                }}
+              >
+                Use this device locally
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
+        <div className="mx-auto w-full max-w-sm space-y-4 rounded-2xl border bg-card p-8 text-center shadow-xl">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <AlertTriangle className="size-6" />
+          </div>
+          <h1 className="text-lg font-semibold">Backend failed to start</h1>
+          <p className="text-sm text-muted-foreground">
+            The local service did not become ready. Check that the bundled backend
+            is present and try again.
+          </p>
+          <Button className="w-full" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
+      <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-xl">
+        <AppLogo className="size-12 rounded-xl" />
+        <div className="space-y-1">
+          <h1 className="text-lg font-semibold">{APP_NAME}</h1>
+          <p className="text-sm text-muted-foreground">Starting local database…</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <LoaderCircle className="size-4 animate-spin" />
+          <span>This is a one-time operation.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function StartupGate({ children }: { children: React.ReactNode }) {
+  const status = useBackendStatus();
+  const isSessionValidating = useAuthStore((s) => s.isSessionValidating);
+  const validateSession = useAuthStore((s) => s.validateSession);
+
+  // Once the backend is ready, validate any persisted session against /auth/me.
+  // A stale access token triggers a silent refresh; a failed refresh logs out.
+  // After a successful silent restore we still hydrate all stores so the UI
+  // reflects the current DB state (the persisted localStorage may be stale).
+  // Anonymous boots skip hydration (no point firing unauthenticated calls).
+  useEffect(() => {
+    if (status !== "ready") return;
+    void validateSession().then((valid) => {
+      if (valid && useAuthStore.getState().isAuthenticated) void hydrateAll();
+    });
+  }, [status, validateSession]);
+
+  return (
+    <>
+      <BackendScreen status={status} />
+      {status === "ready" && isSessionValidating ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
+          <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-xl">
+            <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <ShieldCheck className="size-6" />
+            </div>
+            <h1 className="text-lg font-semibold">Checking session…</h1>
+            <p className="text-sm text-muted-foreground">Verifying your saved sign-in.</p>
+            <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      ) : null}
+      {children}
+    </>
+  );
+}
