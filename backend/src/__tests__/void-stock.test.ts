@@ -78,7 +78,7 @@ describe("sale void restores stock", () => {
     expect(adj.json().data.newQuantity).toBe(10);
 
     const stockBefore = (await app.inject({ method: "GET", url: "/api/v1/inventory?limit=100", headers: h })).json().data;
-    const siBefore = stockBefore.find((s) => s.productId === product.id && s.warehouseId === warehouse.id);
+    const siBefore = stockBefore.find((s: any) => s.productId === product.id && s.warehouseId === warehouse.id);
     expect(siBefore.quantityOnHand).toBe(10);
 
     const create = await app.inject({
@@ -98,7 +98,7 @@ describe("sale void restores stock", () => {
     const sale = create.json().data;
 
     const stockAfterSale = (await app.inject({ method: "GET", url: "/api/v1/inventory?limit=100", headers: h })).json().data;
-    const siAfter = stockAfterSale.find((s) => s.productId === product.id && s.warehouseId === warehouse.id);
+    const siAfter = stockAfterSale.find((s: any) => s.productId === product.id && s.warehouseId === warehouse.id);
     expect(siAfter.quantityOnHand).toBe(7);
 
     // Create a cash account so payment recording succeeds
@@ -128,7 +128,7 @@ describe("sale void restores stock", () => {
     expect(voidRes.json().data.status).toBe("void");
 
     const stockAfterVoid = (await app.inject({ method: "GET", url: "/api/v1/inventory?limit=100", headers: h })).json().data;
-    const siFinal = stockAfterVoid.find((s) => s.productId === product.id && s.warehouseId === warehouse.id);
+    const siFinal = stockAfterVoid.find((s: any) => s.productId === product.id && s.warehouseId === warehouse.id);
     expect(siFinal.quantityOnHand).toBe(10);
   });
 });
