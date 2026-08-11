@@ -25,7 +25,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  binaryTargets = ["windows", "darwin-arm64", "darwin-x64"]
+  binaryTargets = ["windows", "darwin", "darwin-arm64"]
 }
 
 datasource db {
