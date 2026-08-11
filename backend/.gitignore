@@ -11,3 +11,7 @@ prisma/migrations
 jwt.secret
 ledgerflow.db*
 query_engine-*.node
+
+dist-test/
+ledgerflow-api.exe
+
