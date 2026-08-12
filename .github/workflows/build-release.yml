@@ -19,18 +19,21 @@ jobs:
             backend-target: node22-macos-arm64
             backend-out: ledgerflow-backend-arm64
             sidecar-name: ledgerflow-backend-aarch64-apple-darwin
+            rust-target: aarch64-apple-darwin
             name: macos-arm64
-          - platform: macos-13
+          - platform: macos-14
             args: "--target x86_64-apple-darwin --bundles dmg,app"
             backend-target: node22-macos-x64
             backend-out: ledgerflow-backend-x64
             sidecar-name: ledgerflow-backend-x86_64-apple-darwin
+            rust-target: x86_64-apple-darwin
             name: macos-x64
           - platform: windows-latest
             args: "--target x86_64-pc-windows-msvc --bundles nsis"
             backend-target: node22-win-x64
             backend-out: ledgerflow-backend.exe
             sidecar-name: ledgerflow-backend-x86_64-pc-windows-msvc.exe
+            rust-target: x86_64-pc-windows-msvc
             name: windows-x64
 
     runs-on: ${{ matrix.platform }}
@@ -67,7 +70,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-14' && 'aarch64-apple-darwin' || matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || 'x86_64-pc-windows-msvc' }}
+          targets: ${{ matrix.rust-target }}
 
       - name: Install frontend dependencies
         run: npm ci
