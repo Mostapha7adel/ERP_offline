@@ -12,6 +12,7 @@
   },
   "pkg": {
     "assets": [
+      "node_modules/@prisma/client/**/*",
       "node_modules/@prisma/engines/**/*",
       "node_modules/.prisma/client/**/*",
       "prisma/schema.prisma",
@@ -26,9 +27,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.build.json",
-    "bundle": "esbuild src/server.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/server.cjs --external:@prisma/engines --external:bcryptjs",
-    "package": "pkg . --target node22-win-x64 --output dist/ledgerflow-backend.exe",
-    "package:mac": "pkg . --target node22-macos-arm64 --output dist/ledgerflow-backend-arm64 && pkg . --target node22-macos-x64 --output dist/ledgerflow-backend-x64",
+    "bundle": "esbuild src/server.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/server.cjs --external:@prisma/client --external:@prisma/engines --external:bcryptjs",
+    "package": "node scripts/patch-prisma-client.mjs && pkg . --target node22-win-x64 --output dist/ledgerflow-backend.exe",
+    "package:mac": "node scripts/patch-prisma-client.mjs && pkg . --target node22-macos-arm64 --output dist/ledgerflow-backend-arm64 && pkg . --target node22-macos-x64 --output dist/ledgerflow-backend-x64",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

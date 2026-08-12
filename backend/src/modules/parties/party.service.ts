@@ -27,15 +27,15 @@ export class PartyService extends CrudService<Party, PartyCreateInput, PartyUpda
           type: this.partyType,
           code: (input.code as string | undefined)?.toUpperCase() ?? existing?.code ?? (await makeCode(this.partyType)),
           name: input.name ?? existing?.name ?? "",
-          contactName: input.contactName ?? existing?.contactName,
-          email: input.email ? (input.email as string) : existing?.email,
-          phone: input.phone ?? existing?.phone,
-          address: input.address ?? existing?.address,
-          city: input.city ?? existing?.city,
-          taxNumber: input.taxNumber ?? existing?.taxNumber,
-          creditLimit: input.creditLimit ?? existing?.creditLimit,
-          currency: input.currency ?? existing?.currency ?? "USD",
-          notes: input.notes ?? existing?.notes,
+          contactName: input.contactName !== undefined ? input.contactName : existing?.contactName,
+          email: input.email !== undefined ? (input.email as string) : existing?.email,
+          phone: input.phone !== undefined ? input.phone : existing?.phone,
+          address: input.address !== undefined ? input.address : existing?.address,
+          city: input.city !== undefined ? input.city : existing?.city,
+          taxNumber: input.taxNumber !== undefined ? input.taxNumber : existing?.taxNumber,
+          creditLimit: input.creditLimit !== undefined ? input.creditLimit : existing?.creditLimit,
+          currency: input.currency !== undefined ? input.currency : existing?.currency ?? "USD",
+          notes: input.notes !== undefined ? input.notes : existing?.notes,
           status: input.status ?? existing?.status ?? "active",
         } as Omit<Party, keyof BaseEntity>;
       },
@@ -122,7 +122,10 @@ export class PartyService extends CrudService<Party, PartyCreateInput, PartyUpda
 
 async function hasTransactions(type: PartyType, partyId: string): Promise<boolean> {
   return (await invoiceRepository.findAll()).some(
-    (inv) => (type === "customer" ? inv.customerId : inv.supplierId) === partyId,
+    (inv) =>
+      (type === "customer" ? inv.customerId : inv.supplierId) === partyId &&
+      inv.status !== "void" &&
+      inv.status !== "paid",
   );
 }
 

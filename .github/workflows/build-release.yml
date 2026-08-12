@@ -96,7 +96,9 @@ jobs:
 
       - name: Package backend sidecar
         working-directory: backend
-        run: npx pkg . --target $BACKEND_TARGET --output dist/$BACKEND_OUT
+        run: |
+          node scripts/patch-prisma-client.mjs
+          npx pkg . --target $BACKEND_TARGET --output dist/$BACKEND_OUT
 
       - name: Stage sidecar for Tauri
         run: |
