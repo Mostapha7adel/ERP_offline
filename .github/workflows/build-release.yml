@@ -20,6 +20,12 @@ jobs:
             backend-out: ledgerflow-backend-arm64
             sidecar-name: ledgerflow-backend-aarch64-apple-darwin
             name: macos-arm64
+          - platform: macos-13
+            args: "--target x86_64-apple-darwin --bundles dmg,app"
+            backend-target: node22-macos-x64
+            backend-out: ledgerflow-backend-x64
+            sidecar-name: ledgerflow-backend-x86_64-apple-darwin
+            name: macos-x64
           - platform: windows-latest
             args: "--target x86_64-pc-windows-msvc --bundles nsis"
             backend-target: node22-win-x64
