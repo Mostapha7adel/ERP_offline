@@ -1,6 +1,7 @@
 import { Search, Menu, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useUIStore } from "@/stores/ui-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { hydrateAll } from "@/lib/api/hydration";
 import { Kbd } from "@/shared/components/ui/kbd";
 import { Breadcrumbs } from "@/shared/components/layout/breadcrumbs";
@@ -35,6 +36,7 @@ function RefreshButton() {
     setRefreshing(true);
     try {
       await hydrateAll();
+      useAuthStore.getState().setHydrated();
     } finally {
       setRefreshing(false);
     }

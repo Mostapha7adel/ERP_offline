@@ -171,6 +171,54 @@ export function latestMonthTotals(invoices: Invoice[]): {
   };
 }
 
+/** Percentage change between the two most recent months, or 0 when there is
+ *  no previous month to compare against (avoids divide-by-zero + fake trends). */
+export function monthOverMonth(invoices: Invoice[]): {
+  revenueTrend: number;
+  expenseTrend: number;
+  profitTrend: number;
+} {
+  const series = buildRevenueSeries(invoices);
+  const month = Math.max(0, new Date().getMonth());
+  const current = series[month] ?? { revenue: 0, expenses: 0, profit: 0 };
+  const previous = month > 0 ? series[month - 1] ?? { revenue: 0, expenses: 0, profit: 0 } : { revenue: 0, expenses: 0, profit: 0 };
+
+  const pct = (curr: number, prev: number) => (prev === 0 ? 0 : Math.round(((curr - prev) / Math.abs(prev)) * 100));
+  return {
+    revenueTrend: pct(current.revenue, previous.revenue),
+    expenseTrend: pct(current.expenses, previous.expenses),
+    profitTrend: pct(current.profit, previous.profit),
+  };
+}
+
+/** Sales growth of this week vs the previous week (percentage). */
+export function weeklySalesTrend(invoices: Invoice[]): number {
+  const weekly = buildWeeklySales(invoices);
+  const thisWeek = weekly.reduce((s, d) => s + d.value, 0);
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  const startOfPrev = new Date(startOfWeek);
+  startOfPrev.setDate(startOfWeek.getDate() - 7);
+
+  const sales = invoices.filter((i) => i.kind === "sale" && !isVoid(i));
+  let prev = 0;
+  for (const inv of sales) {
+    const d = new Date(inv.issueDate);
+    if (d >= startOfPrev && d < startOfWeek) prev += inv.total;
+  }
+  if (prev === 0) return 0;
+  return Math.round(((thisWeek - prev) / Math.abs(prev)) * 100);
+}
+
+/** Net profit margin as a percentage (0 when no revenue). */
+export function profitMargin(invoices: Invoice[]): number {
+  const { revenue, profit } = latestMonthTotals(invoices);
+  if (revenue === 0) return 0;
+  return Math.round((profit / revenue) * 100);
+}
+
 /** Amounts still owed on non-voided invoices.
  * - `customers`: unpaid sales invoice balances (money owed to the business).
  * - `suppliers`: unpaid purchase invoice balances (money the business owes).

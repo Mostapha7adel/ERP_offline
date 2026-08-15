@@ -1,5 +1,6 @@
 import { AppError } from "../../core/errors/app-error.js";
 import { accountRepository, journalEntryRepository } from "./accounting.repository.js";
+import { fiscalYearRepository } from "./fiscal-year.repository.js";
 import {
   accountCreateSchema,
   accountUpdateSchema,
@@ -89,6 +90,14 @@ export class AccountingService {
   async createJournal(input: JournalCreateInput, audit: AuditContext): Promise<JournalEntry> {
     const validated = journalCreateSchema.parse(input);
 
+    // Reject dates inside a closed fiscal year (the period is locked).
+    const closed = await fiscalYearRepository.findClosedContaining(validated.date);
+    if (closed) {
+      throw AppError.conflict(
+        `Journal date ${validated.date.slice(0, 10)} falls within the closed fiscal year "${closed.name}". Reopen the year or use another date.`,
+      );
+    }
+
     let totalDebit = 0;
     let totalCredit = 0;
     for (const line of validated.lines) {
@@ -177,8 +186,21 @@ export class AccountingService {
     return { account, entries: rows };
   }
 
-  async getTrialBalance() {
-    const chart = await this.getChart();
+  async getTrialBalance(fiscalYearId?: string) {
+    let chart = await this.getChart();
+
+    // When a fiscal year is selected, scope balances to journals dated inside
+    // that year (opening balances carry forward).
+    if (fiscalYearId) {
+      const fy = await fiscalYearRepository.findById(fiscalYearId);
+      if (!fy) throw AppError.notFound("Fiscal year not found");
+      const balances = await this.balancesForRange(fy.startDate, fy.endDate);
+      chart = chart.map((a) => {
+        const balance = balances[a.code];
+        return balance !== undefined ? { ...a, balance } : a;
+      });
+    }
+
     let totalDebit = 0;
     let totalCredit = 0;
     const rows = chart.map((account) => {
@@ -193,7 +215,29 @@ export class AccountingService {
       rows,
       totalDebit: round2(totalDebit),
       totalCredit: round2(totalCredit),
+      fiscalYearId,
     };
+  }
+
+  /** Balances per account over a date range (opening balance + posted journals). */
+  private async balancesForRange(from: string, to: string) {
+    const accounts = await accountRepository.findAll();
+    const entries = await journalEntryRepository.byDateRange(from, to);
+    const balances: Record<string, number> = {};
+    for (const account of accounts) {
+      balances[account.code] = account.openingBalance;
+    }
+    for (const entry of entries) {
+      for (const line of entry.lines) {
+        const account = accounts.find((a) => a.code === line.accountCode);
+        if (!account) continue;
+        const delta = account.type === "asset" || account.type === "expense"
+          ? line.debit - line.credit
+          : line.credit - line.debit;
+        balances[line.accountCode] = round2((balances[line.accountCode] ?? 0) + delta);
+      }
+    }
+    return balances;
   }
 }
 

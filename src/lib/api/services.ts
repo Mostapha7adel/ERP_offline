@@ -4,8 +4,12 @@ import {
   mapProduct,
   mapWarehouse,
   mapInvoice,
+  mapQuote,
+  mapRecurring,
   mapAccount,
   mapJournalEntry,
+  mapTradeNote,
+  mapFiscalYear,
   mapBankAccount,
   mapMoneyTransaction,
   mapUser,
@@ -18,6 +22,12 @@ import type {
   Product,
   Warehouse,
   Invoice,
+  Quote,
+  RecurringInvoice,
+  RecurringFrequency,
+  TradeNote,
+  FiscalYear,
+  PartyStatement,
   Account,
   JournalEntry,
   BankAccount,
@@ -145,6 +155,7 @@ export function partiesApi() {
 
 export interface ProductInput {
   sku?: string;
+  barcode?: string;
   name: string;
   description?: string;
   category?: string;
@@ -297,7 +308,37 @@ export function inventoryApi() {
     transfer(input: TransferInput): Promise<{ success: boolean }> {
       return api.post<{ success: boolean }>("/inventory/transfers", input);
     },
+    async batches(query?: { productId?: string; warehouseId?: string }): Promise<BatchRow[]> {
+      return api.get<BatchRow[]>("/inventory/batches", {
+        query: query as Record<string, string | number | boolean> | undefined,
+      });
+    },
+    recordBatch(input: {
+      productId: string;
+      warehouseId: string;
+      batchNumber: string;
+      quantity: number;
+      expiryDate?: string;
+    }): Promise<{ success: boolean }> {
+      return api.post<{ success: boolean }>("/inventory/batches", input);
+    },
   };
+}
+
+export interface BatchRow {
+  id: string;
+  productId: string;
+  warehouseId: string;
+  batchNumber: string;
+  quantity: number;
+  expiryDate?: string;
+  receivedAt: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  productName?: string;
+  sku?: string;
+  warehouseName?: string;
 }
 
 // ---- Invoices (sales & purchases) ----
@@ -310,6 +351,8 @@ export interface InvoiceLineInput {
   unitPrice: number;
   discount?: number;
   taxRate?: number;
+  batchNumber?: string;
+  expiryDate?: string;
 }
 
 export interface InvoiceInput {
@@ -332,6 +375,40 @@ export interface PaymentInput {
   amount: number;
   method?: string;
   accountId?: string;
+}
+
+export interface QuoteLineInput {
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  discount?: number;
+  taxRate?: number;
+}
+
+export interface QuoteInput {
+  type: "sales" | "purchase";
+  partyId: string;
+  quoteDate: string;
+  validUntil?: string;
+  warehouseId?: string;
+  lines: QuoteLineInput[];
+  discount?: number;
+  notes?: string;
+}
+
+export interface RecurringInput {
+  type: "sales" | "purchase";
+  partyId: string;
+  warehouseId?: string;
+  frequency: RecurringFrequency;
+  interval: number;
+  nextRunDate: string;
+  isActive?: boolean;
+  lines: QuoteLineInput[];
+  discount?: number;
+  notes?: string;
 }
 
 export function invoicesApi() {
@@ -567,6 +644,90 @@ export function accountingApi() {
   };
 }
 
+// ---- Credit / Debit notes ----
+
+export interface NoteLineInput {
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  discount?: number;
+  taxRate?: number;
+}
+
+export interface NoteInput {
+  type: "sales" | "purchase";
+  noteType: "credit" | "debit";
+  invoiceId?: string;
+  partyId?: string;
+  warehouseId?: string;
+  noteDate: string;
+  lines: NoteLineInput[];
+  discount?: number;
+  reason?: string;
+  notes?: string;
+}
+
+export function notesApi() {
+  return {
+    async list(): Promise<TradeNote[]> {
+      const res = await api.getList<Parameters<typeof mapTradeNote>[0]>(
+        "/notes?limit=100",
+      );
+      return res.data.map(mapTradeNote);
+    },
+    async get(id: string): Promise<TradeNote> {
+      const note = await api.get<Parameters<typeof mapTradeNote>[0]>(`/notes/${id}`);
+      return mapTradeNote(note);
+    },
+    create(input: NoteInput): Promise<TradeNote> {
+      return api
+        .post<Parameters<typeof mapTradeNote>[0]>("/notes", input)
+        .then(mapTradeNote);
+    },
+    void(id: string): Promise<TradeNote> {
+      return api
+        .post<Parameters<typeof mapTradeNote>[0]>(`/notes/${id}/void`)
+        .then(mapTradeNote);
+    },
+  };
+}
+
+// ---- Fiscal years ----
+
+export interface FiscalYearInput {
+  name: string;
+  startDate: string;
+  endDate: string;
+  notes?: string;
+}
+
+export interface FiscalYearBalances {
+  fiscalYears: FiscalYear[];
+}
+
+export function fiscalYearApi() {
+  return {
+    async list(): Promise<FiscalYear[]> {
+      const res = await api.get<Parameters<typeof mapFiscalYear>[0][]>(
+        "/accounting/fiscal-years",
+      );
+      return (res ?? []).map(mapFiscalYear);
+    },
+    create(input: FiscalYearInput): Promise<FiscalYear> {
+      return api
+        .post<Parameters<typeof mapFiscalYear>[0]>("/accounting/fiscal-years", input)
+        .then(mapFiscalYear);
+    },
+    close(id: string): Promise<FiscalYear> {
+      return api
+        .post<Parameters<typeof mapFiscalYear>[0]>(`/accounting/fiscal-years/${id}/close`)
+        .then(mapFiscalYear);
+    },
+  };
+}
+
 // ---- Users & Roles ----
 
 export interface UserInput {
@@ -782,6 +943,156 @@ export function settingsApi() {
 }
 
 
+// ---- Reports ----
+
+export interface ReportRange {
+  from?: string;
+  to?: string;
+}
+
+export interface ProfitLossReport {
+  period: { from: string; to: string };
+  revenue: number;
+  taxCollected: number;
+  cogs: number;
+  grossProfit: number;
+  grossMargin: number;
+  operatingExpenses: number;
+  netProfit: number;
+}
+
+export interface CashFlowReport {
+  period: { from: string; to: string };
+  inflows: number;
+  outflows: number;
+  net: number;
+  totalCashBalance: number;
+  byCategory: Array<{ category: string; type: string; amount: number }>;
+}
+
+export interface SalesReport {
+  period: { from: string; to: string };
+  summary: { count: number; totalRevenue: number; totalTax: number; averageInvoice: number };
+  topProducts: Array<{ productId?: string; name: string; quantity: number; revenue: number }>;
+  byCustomer: Array<{ name: string; count: number; total: number }>;
+}
+
+export interface InventoryValuationRow {
+  productId: string;
+  sku?: string;
+  name?: string;
+  quantityOnHand: number;
+  averageCost: number;
+  value: number;
+  isLowStock: boolean;
+}
+
+export interface InventoryValuationReport {
+  totalValue: number;
+  totalUnits: number;
+  items: InventoryValuationRow[];
+}
+
+export interface AgingReport {
+  type: "receivable" | "payable";
+  buckets: Record<string, number>;
+  total: number;
+  rows: Array<{
+    invoiceId: string;
+    number: string;
+    partyName: string;
+    invoiceDate: string;
+    dueDate?: string;
+    total: number;
+    paidAmount: number;
+    balance: number;
+    bucket: string;
+  }>;
+}
+
+export interface BalanceSheetReport {
+  sections: {
+    assets: { label: string; rows: Array<{ code: string; name: string; balance: number }>; total: number };
+    liabilities: { label: string; rows: Array<{ code: string; name: string; balance: number }>; total: number };
+    equity: { label: string; rows: Array<{ code: string; name: string; balance: number }>; total: number };
+  };
+  retainedEarnings: number;
+  netProfit: number;
+  totalAssets: number;
+  totalLiabilitiesAndEquity: number;
+  balanced: boolean;
+}
+
+export interface CustomerLedgerReport {
+  customers: Array<{
+    customerId: string;
+    name: string;
+    open: number;
+    paid: number;
+    invoices: Array<{
+      id: string;
+      number: string;
+      invoiceDate: string;
+      dueDate?: string;
+      total: number;
+      paidAmount: number;
+      balance: number;
+      status: string;
+    }>;
+  }>;
+}
+
+export interface TrialBalanceRow {
+  code: string;
+  name: string;
+  type: string;
+  debit: number;
+  credit: number;
+}
+
+export interface TrialBalanceReport {
+  rows: TrialBalanceRow[];
+  totalDebit: number;
+  totalCredit: number;
+}
+
+export function reportsApi() {
+  return {
+    profitLoss(range?: ReportRange): Promise<ProfitLossReport> {
+      return api.get<ProfitLossReport>("/reports/profit-loss", { query: range ? { ...range } : undefined });
+    },
+    cashFlow(range?: ReportRange): Promise<CashFlowReport> {
+      return api.get<CashFlowReport>("/reports/cash-flow", { query: range ? { ...range } : undefined });
+    },
+    sales(range?: ReportRange): Promise<SalesReport> {
+      return api.get<SalesReport>("/reports/sales", { query: range ? { ...range } : undefined });
+    },
+    inventoryValuation(): Promise<InventoryValuationReport> {
+      return api.get<InventoryValuationReport>("/reports/inventory-valuation");
+    },
+    aging(type: "receivable" | "payable"): Promise<AgingReport> {
+      return api.get<AgingReport>("/reports/aging", { query: { type } });
+    },
+    balanceSheet(): Promise<BalanceSheetReport> {
+      return api.get<BalanceSheetReport>("/reports/balance-sheet");
+    },
+    customerLedger(customerId?: string): Promise<CustomerLedgerReport> {
+      return api.get<CustomerLedgerReport>("/reports/customer-ledger", { query: { customerId } });
+    },
+    trialBalance(): Promise<TrialBalanceReport> {
+      return api.get<TrialBalanceReport>("/accounting/trial-balance");
+    },
+    trialBalanceForFiscalYear(fiscalYearId: string): Promise<TrialBalanceReport> {
+      return api.get<TrialBalanceReport>("/accounting/trial-balance", { query: { fiscalYearId } });
+    },
+    partyStatement(partyId: string, range?: ReportRange): Promise<PartyStatement> {
+      return api.get<PartyStatement>("/reports/party-statement", {
+        query: { partyId, ...(range?.from ? { from: range.from } : {}), ...(range?.to ? { to: range.to } : {}) },
+      });
+    },
+  };
+}
+
 // ---- Network (LAN workspace) ----
 
 export interface NetworkStatus {
@@ -790,6 +1101,7 @@ export interface NetworkStatus {
   workspaceReady: boolean;
   serverTime: string;
   hostIps: string[];
+  port: number;
 }
 
 export interface NetworkWorkspace {
@@ -846,6 +1158,85 @@ export function networkApi() {
     },
     kick(deviceId: string): Promise<{ success: boolean }> {
       return api.post<{ success: boolean }>("/network/kick", { deviceId });
+    },
+  };
+}
+
+export function quotesApi() {
+  const base = (kind: "sale" | "purchase") =>
+    kind === "sale" ? "/quotes/sales" : "/quotes/purchases";
+
+  return {
+    async list(kind: "sale" | "purchase"): Promise<Quote[]> {
+      const res = await api.getList<Parameters<typeof mapQuote>[0]>(
+        `${base(kind)}?limit=100`,
+      );
+      return res.data.map(mapQuote);
+    },
+    async get(kind: "sale" | "purchase", id: string): Promise<Quote> {
+      const quote = await api.get<Parameters<typeof mapQuote>[0]>(
+        `${base(kind)}/${id}`,
+      );
+      return mapQuote(quote);
+    },
+    create(kind: "sale" | "purchase", input: QuoteInput): Promise<Quote> {
+      return api
+        .post<Parameters<typeof mapQuote>[0]>(base(kind), input)
+        .then(mapQuote);
+    },
+    update(kind: "sale" | "purchase", id: string, input: Partial<QuoteInput>): Promise<Quote> {
+      return api
+        .patch<Parameters<typeof mapQuote>[0]>(`${base(kind)}/${id}`, input)
+        .then(mapQuote);
+    },
+    async convert(kind: "sale" | "purchase", id: string): Promise<{ quote: Quote; invoiceId: string }> {
+      const res = await api.post<{ quote: Parameters<typeof mapQuote>[0]; invoiceId: string }>(
+        `${base(kind)}/${id}/convert`,
+        {},
+      );
+      return { quote: mapQuote(res.quote), invoiceId: res.invoiceId };
+    },
+    remove(kind: "sale" | "purchase", id: string): Promise<{ success: boolean }> {
+      return api.delete<{ success: boolean }>(`${base(kind)}/${id}`);
+    },
+  };
+}
+
+export function recurringApi() {
+  const base = (kind: "sale" | "purchase") =>
+    kind === "sale" ? "/recurring/sales" : "/recurring/purchases";
+
+  return {
+    async list(kind: "sale" | "purchase"): Promise<RecurringInvoice[]> {
+      const res = await api.getList<Parameters<typeof mapRecurring>[0]>(
+        `${base(kind)}?limit=100`,
+      );
+      return res.data.map(mapRecurring);
+    },
+    async get(kind: "sale" | "purchase", id: string): Promise<RecurringInvoice> {
+      const recurring = await api.get<Parameters<typeof mapRecurring>[0]>(
+        `${base(kind)}/${id}`,
+      );
+      return mapRecurring(recurring);
+    },
+    create(kind: "sale" | "purchase", input: RecurringInput): Promise<RecurringInvoice> {
+      return api
+        .post<Parameters<typeof mapRecurring>[0]>(base(kind), input)
+        .then(mapRecurring);
+    },
+    update(kind: "sale" | "purchase", id: string, input: Partial<RecurringInput>): Promise<RecurringInvoice> {
+      return api
+        .patch<Parameters<typeof mapRecurring>[0]>(`${base(kind)}/${id}`, input)
+        .then(mapRecurring);
+    },
+    run(kind: "sale" | "purchase"): Promise<{ generated: number; invoices: string[] }> {
+      return api.post<{ generated: number; invoices: string[] }>(
+        `${base(kind)}/run`,
+        {},
+      );
+    },
+    remove(kind: "sale" | "purchase", id: string): Promise<{ success: boolean }> {
+      return api.delete<{ success: boolean }>(`${base(kind)}/${id}`);
     },
   };
 }

@@ -6,6 +6,7 @@ import { registerPlugins } from "./plugins/index.js";
 import { authPlugin } from "./plugins/auth.js";
 import { registerModules } from "./modules/index.js";
 import { broadcastSync } from "./core/realtime/realtime.js";
+import { getBoundPort } from "./core/runtime/bound-port.js";
 
 /**
  * Builds and wires the Fastify application.
@@ -31,8 +32,9 @@ export async function buildServer(): Promise<FastifyInstance> {
   app.setSerializerCompiler(serializerCompiler);
   app.setErrorHandler(errorHandler);
 
-  // Health check (public)
-  app.get("/health", { config: { auth: false } }, async () => ({ status: "ok" }));
+  // Health check (public). Includes the actual bound port so the Tauri shell
+  // and any LAN client can discover where this backend is listening.
+  app.get("/health", { config: { auth: false } }, async () => ({ status: "ok", port: getBoundPort() }));
 
   await registerPlugins(app);
   await authPlugin(app);

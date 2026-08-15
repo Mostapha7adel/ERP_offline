@@ -1,6 +1,7 @@
 import { AppError } from "../../core/errors/app-error.js";
 import { env } from "../../config/env.js";
 import { networkInterfaces } from "node:os";
+import { getBoundPort } from "../../core/runtime/bound-port.js";
 import { auditService, type AuditContext } from "../../core/audit/audit.service.js";
 import {
   networkWorkspaceRepository,
@@ -52,7 +53,7 @@ export class NetworkService {
   }
 
   /** Public reachability check used by a client before joining. */
-  async status(): Promise<{ app: string; mode: string; workspaceReady: boolean; serverTime: string; hostIps: string[] }> {
+  async status(): Promise<{ app: string; mode: string; workspaceReady: boolean; serverTime: string; hostIps: string[]; port: number }> {
     const workspace = await networkWorkspaceRepository.findActive();
     return {
       app: "ledgerflow",
@@ -60,6 +61,7 @@ export class NetworkService {
       workspaceReady: Boolean(workspace),
       serverTime: new Date().toISOString(),
       hostIps: lanAddresses(),
+      port: getBoundPort(),
     };
   }
 

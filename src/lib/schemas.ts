@@ -21,6 +21,7 @@ export type PartyFormValues = z.infer<typeof partySchema>;
 
 export const productSchema = z.object({
   sku: z.string().min(1, "SKU is required").max(40),
+  barcode: z.string().max(40).optional(),
   name: z.string().min(2, "Product name is required").max(160),
   category: z.string().min(1, "Category is required"),
   unit: z.string().default("pc"),

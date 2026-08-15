@@ -92,6 +92,23 @@ enum InvoiceStatus {
   void
 }
 
+enum QuoteStatus {
+  draft
+  sent
+  accepted
+  rejected
+  expired
+  converted
+}
+
+enum RecurringFrequency {
+  daily
+  weekly
+  monthly
+  quarterly
+  yearly
+}
+
 enum PaymentMethod {
   cash
   bankTransfer
@@ -129,6 +146,21 @@ enum JournalStatus {
   void
 }
 
+enum TradeNoteType {
+  credit
+  debit
+}
+
+enum TradeNoteStatus {
+  issued
+  void
+}
+
+enum FiscalYearStatus {
+  open
+  closed
+}
+
 enum AssetStatus {
   active
   disposed
@@ -162,8 +194,13 @@ model Company {
   products    Product[]
   warehouses  Warehouse[]
   stockItems  StockItem[]
+  batches     Batch[]
   movements   StockMovement[]
   invoices    Invoice[]
+  quotes      Quote[]
+  recurring   RecurringInvoice[]
+  tradeNotes  TradeNote[]
+  fiscalYears FiscalYear[]
   treasuryAcc TreasuryAccount[]
   treasuryTx  TreasuryTransaction[]
   accounts    Account[]
@@ -320,6 +357,9 @@ model Party {
   company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   salesInvoices    Invoice[]             @relation("SalesParty")
   purchaseInvoices Invoice[]             @relation("PurchaseParty")
+  quotes           Quote[]               @relation("QuoteParty")
+  recurring        RecurringInvoice[]
+  tradeNotes       TradeNote[]           @relation("TradeNoteParty")
   treasuryTx       TreasuryTransaction[]
   stockMovements   StockMovement[]
 
@@ -386,8 +426,12 @@ model Product {
   category     Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   unit         Unit            @relation(fields: [unitId], references: [id])
   stockItems   StockItem[]
+  batches      Batch[]
   movements    StockMovement[]
   invoiceLines InvoiceLine[]
+  quoteLines   QuoteLine[]
+  recurringLines RecurringInvoiceLine[]
+  noteLines    TradeNoteLine[]
 
   @@unique([companyId, sku])
   @@index([companyId, barcode])
@@ -417,8 +461,12 @@ model Warehouse {
 
   company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   stockItems StockItem[]
+  batches    Batch[]
   movements  StockMovement[]
   invoices   Invoice[]
+  quotes     Quote[]
+  recurring  RecurringInvoice[]
+  tradeNotes TradeNote[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -445,6 +493,30 @@ model StockItem {
   @@unique([productId, warehouseId])
   @@index([companyId, warehouseId])
   @@index([reorderLevel])
+}
+
+/// Batch / lot tracking with optional expiry, keyed per (product, warehouse).
+model Batch {
+  id          String    @id @default(uuid())
+  companyId   String
+  productId   String
+  warehouseId String
+  batchNumber String
+  quantity    Float     @default(0)
+  expiryDate  DateTime?
+  receivedAt  DateTime  @default(now())
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, productId, warehouseId])
+  @@index([expiryDate])
+  @@unique([companyId, productId, warehouseId, batchNumber])
 }
 
 /// Append-only inventory ledger. Source of truth for stock.
@@ -510,6 +582,10 @@ model Invoice {
   warehouse Warehouse?       @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   lines     InvoiceLine[]
   payments  InvoicePayment[]
+  quote     Quote?           @relation("QuoteConversion", fields: [quoteId], references: [id], onDelete: SetNull)
+  tradeNotes TradeNote[]
+
+  quoteId String? @unique
 
   @@unique([companyId, number])
   @@index([companyId, type, status])
@@ -560,6 +636,180 @@ model InvoicePayment {
 
   @@index([invoiceId])
   @@index([accountId])
+}
+
+// -----------------------------------------------------------------------------
+// Credit / debit notes: adjust an invoice amount and reverse stock. A sales
+// credit note returns goods to the warehouse; a sales debit note bills more.
+// -----------------------------------------------------------------------------
+
+model TradeNote {
+  id          String          @id @default(uuid())
+  companyId   String
+  type        InvoiceType
+  noteType    TradeNoteType
+  number      String
+  invoiceId   String?
+  partyId     String?
+  warehouseId String?
+  noteDate    DateTime
+  subtotal    Float           @default(0)
+  discount    Float           @default(0)
+  tax         Float           @default(0)
+  total       Float           @default(0)
+  status      TradeNoteStatus @default(issued)
+  reason      String?
+  notes       String?
+  createdBy   String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice   Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  party     Party?           @relation("TradeNoteParty", fields: [partyId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?       @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines     TradeNoteLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, type, status])
+  @@index([companyId, noteDate])
+  @@index([invoiceId])
+  @@index([partyId])
+  @@index([warehouseId])
+}
+
+model TradeNoteLine {
+  id          String    @id @default(uuid())
+  noteId      String
+  productId   String?
+  productName String
+  description String?
+  quantity    Float
+  unitPrice   Float
+  discount    Float     @default(0)
+  taxRate     Float     @default(0)
+  lineTotal   Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  note    TradeNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  product Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([noteId])
+  @@index([productId])
+}
+model Quote {
+  id         String      @id @default(uuid())
+  companyId  String
+  type       InvoiceType
+  number     String
+  partyId    String?
+  quoteDate  DateTime
+  validUntil DateTime?
+  warehouseId String?
+  subtotal   Float       @default(0)
+  discount   Float       @default(0)
+  tax        Float       @default(0)
+  total      Float       @default(0)
+  status     QuoteStatus @default(draft)
+  notes      String?
+  createdBy  String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  party     Party?   @relation("QuoteParty", fields: [partyId], references: [id], onDelete: SetNull)
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines     QuoteLine[]
+  invoices  Invoice[] @relation("QuoteConversion")
+
+  @@unique([companyId, number])
+  @@index([companyId, type, status])
+  @@index([partyId])
+  @@index([quoteDate])
+}
+
+model QuoteLine {
+  id          String   @id @default(uuid())
+  quoteId     String
+  productId   String?
+  productName String
+  description String?
+  quantity    Float
+  unitPrice   Float
+  discount    Float    @default(0)
+  taxRate     Float    @default(0)
+  lineTotal   Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  quote   Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([quoteId])
+  @@index([productId])
+}
+
+// -----------------------------------------------------------------------------
+// Recurring invoices: templates that auto-generate invoices on a schedule
+// -----------------------------------------------------------------------------
+
+model RecurringInvoice {
+  id             String             @id @default(uuid())
+  companyId      String
+  type           InvoiceType
+  number         String
+  partyId        String?
+  warehouseId    String?
+  frequency      RecurringFrequency
+  interval       Int                @default(1)
+  nextRunDate    DateTime
+  lastRunAt      DateTime?
+  subtotal       Float              @default(0)
+  discount       Float              @default(0)
+  tax            Float              @default(0)
+  total          Float              @default(0)
+  isActive       Boolean            @default(true)
+  notes          String?
+  createdBy      String
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  deletedAt      DateTime?
+
+  company   Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  party     Party?                @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?            @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines     RecurringInvoiceLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, type, isActive])
+  @@index([nextRunDate])
+}
+
+model RecurringInvoiceLine {
+  id          String   @id @default(uuid())
+  recurringId String
+  productId   String?
+  productName String
+  description String?
+  quantity    Float
+  unitPrice   Float
+  discount    Float    @default(0)
+  taxRate     Float    @default(0)
+  lineTotal   Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  recurring RecurringInvoice @relation(fields: [recurringId], references: [id], onDelete: Cascade)
+  product   Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([recurringId])
+  @@index([productId])
 }
 
 // -----------------------------------------------------------------------------
@@ -709,6 +959,33 @@ model JournalDetail {
   @@index([journalId])
   @@index([accountId])
   @@index([costCenterId])
+}
+
+// -----------------------------------------------------------------------------
+// Fiscal years: define a period, close it at year end (P&L to retained
+// earnings) and lock journals dated inside a closed year.
+// -----------------------------------------------------------------------------
+
+model FiscalYear {
+  id               String           @id @default(uuid())
+  companyId        String
+  name             String
+  startDate        DateTime
+  endDate          DateTime
+  status           FiscalYearStatus @default(open)
+  closingJournalId String?
+  closedAt         DateTime?
+  closedBy         String?
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId, status])
+  @@index([companyId, startDate, endDate])
 }
 
 // -----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import { AppError } from "../../core/errors/app-error.js";
-import { stockItemRepository, stockMovementRepository } from "./inventory.repository.js";
+import { stockItemRepository, stockMovementRepository, batchRepository } from "./inventory.repository.js";
 import { productRepository } from "../products/product.repository.js";
 import { notificationService } from "../notifications/notification.service.js";
 import type { AuthPrincipal } from "../../core/security/rbac.js";
@@ -129,4 +129,57 @@ export async function applyLineStock(
       actor: opts.actor,
     },
   );
+}
+
+/** Record a received batch (purchase stock-in) with optional expiry. */
+export async function recordBatch(input: {
+  productId: string;
+  warehouseId: string;
+  batchNumber: string;
+  quantity: number;
+  expiryDate?: string;
+  createdBy: string;
+}): Promise<void> {
+  const { productId, warehouseId, batchNumber, quantity, expiryDate, createdBy } = input;
+  if (quantity <= 0) return;
+  const existing = await batchRepository.findByBatchNumber(productId, warehouseId, batchNumber);
+  if (existing) {
+    await batchRepository.update({ id: existing.id, data: { quantity: existing.quantity + quantity } });
+  } else {
+    await batchRepository.create({
+      data: {
+        productId,
+        warehouseId,
+        batchNumber,
+        quantity,
+        expiryDate: expiryDate ? new Date(expiryDate).toISOString() : undefined,
+        receivedAt: new Date().toISOString(),
+        createdBy,
+      },
+    });
+  }
+}
+
+/** Deduct stock-out from batches using FEFO (earliest expiry first, then oldest). */
+export async function consumeBatches(
+  productId: string,
+  warehouseId: string,
+  quantity: number,
+): Promise<void> {
+  if (quantity <= 0) return;
+  let remaining = quantity;
+  const batches = (await batchRepository.byProductWarehouse(productId, warehouseId)).sort((a, b) => {
+    if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate);
+    if (a.expiryDate) return -1;
+    if (b.expiryDate) return 1;
+    return a.receivedAt.localeCompare(b.receivedAt);
+  });
+  for (const batch of batches) {
+    if (remaining <= 0) break;
+    const take = Math.min(batch.quantity, remaining);
+    if (take > 0) {
+      await batchRepository.update({ id: batch.id, data: { quantity: batch.quantity - take } });
+      remaining -= take;
+    }
+  }
 }

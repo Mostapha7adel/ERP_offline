@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, ScanBarcode } from "lucide-react";
 import { uuid } from "@/lib/utils";
 import { invoicesApi } from "@/lib/api";
 import { useT } from "@/shared/lib/i18n";
@@ -76,6 +76,7 @@ interface ProductLike {
   id: string;
   name: string;
   sku: string;
+  barcode?: string;
   salePrice: number;
   costPrice: number;
   taxRate: number;
@@ -120,6 +121,9 @@ export function InvoiceFormDialog({
   const [paymentAccountId, setPaymentAccountId] = useState("");
   // Purchases only: whether the goods have been received into the warehouse.
   const [received, setReceived] = useState(true);
+  // Barcode scanner / manual lookup input (scanners act as a fast keyboard).
+  const [scanQuery, setScanQuery] = useState("");
+  const [scanError, setScanError] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -135,6 +139,8 @@ export function InvoiceFormDialog({
 
   useEffect(() => {
     if (!open) return;
+    setScanQuery("");
+    setScanError(false);
     if (invoice) {
       setLines(invoice.lines.map((l) => ({ ...l })));
       setPaidNow(false);
@@ -247,6 +253,53 @@ export function InvoiceFormDialog({
     } else if (value) {
       applyProduct(lineId, value);
     }
+  };
+
+  const scanBarcode = (raw: string) => {
+    const code = raw.trim();
+    if (!code) return;
+    const product = products.find((p) => p.barcode && p.barcode.trim() === code);
+    if (!product) {
+      setScanError(true);
+      setScanQuery("");
+      return;
+    }
+    setScanError(false);
+    setScanQuery("");
+    setLines((prev) => {
+      const existing = prev.find(
+        (l) => !lineIsFilled(l) || l.productId === product.id,
+      );
+      if (existing) {
+        return prev.map((l) => {
+          if (l.id !== existing.id) return l;
+          const unitPrice = kind === "sale" ? product.salePrice : product.costPrice;
+          return {
+            ...l,
+            productId: product.id,
+            description: product.name,
+            quantity: (l.productId === product.id ? l.quantity : 0) + 1,
+            unitPrice,
+            taxRate: product.taxRate ?? 8.25,
+            lineTotal: Math.round(((l.productId === product.id ? l.quantity : 0) + 1) * unitPrice * 100) / 100,
+          };
+        });
+      }
+      const line = defaultLine();
+      const unitPrice = kind === "sale" ? product.salePrice : product.costPrice;
+      return [
+        ...prev,
+        {
+          ...line,
+          productId: product.id,
+          description: product.name,
+          quantity: 1,
+          unitPrice,
+          taxRate: product.taxRate ?? 8.25,
+          lineTotal: unitPrice,
+        },
+      ];
+    });
   };
 
   const updateLine = (lineId: string, patch: Partial<InvoiceLine>) => {
@@ -380,6 +433,43 @@ export function InvoiceFormDialog({
             </div>
 
             <div className="rounded-xl border">
+              <div className="flex items-center gap-2 border-b p-2">
+                <ScanBarcode className="size-4 text-muted-foreground" />
+                <Input
+                  value={scanQuery}
+                  onChange={(e) => {
+                    setScanQuery(e.target.value);
+                    if (scanError) setScanError(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      scanBarcode(scanQuery);
+                    }
+                  }}
+                  placeholder={t(
+                    "Scan or type a barcode, then Enter…",
+                    "امسح الباركود أو اكتبه ثم اضغط Enter…",
+                  )}
+                  className="h-8 flex-1 font-mono"
+                  aria-label={t("Barcode", "الباركود")}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => scanBarcode(scanQuery)}
+                >
+                  <ScanBarcode className="size-3.5" />
+                  {t("Add", "إضافة")}
+                </Button>
+                {scanError ? (
+                  <span className="text-xs text-destructive">
+                    {t("No product with this barcode", "لا يوجد منتج بهذا الباركود")}
+                  </span>
+                ) : null}
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>

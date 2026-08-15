@@ -42,6 +42,7 @@ export function useRealtimeSync(): void {
       pollInFlight = true;
       void hydrateAll().finally(() => {
         pollInFlight = false;
+        useAuthStore.getState().setHydrated();
       });
     };
 
@@ -63,7 +64,9 @@ export function useRealtimeSync(): void {
       es.onmessage = () => {
         window.clearTimeout(debounceRef.current);
         debounceRef.current = window.setTimeout(() => {
-          if (!disposed) void hydrateAll();
+          if (!disposed) {
+            void hydrateAll().finally(() => useAuthStore.getState().setHydrated());
+          }
         }, DEBOUNCE_MS);
       };
 

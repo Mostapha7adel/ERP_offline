@@ -32,6 +32,7 @@ const PERMISSION_CODES = [
   "inventory:read", "inventory:adjust", "inventory:transfer",
   "sales:read", "sales:create", "sales:update", "sales:void",
   "purchases:read", "purchases:create", "purchases:update", "purchases:void",
+  "notes:read", "notes:create", "notes:update", "notes:void",
   "treasury:read", "treasury:create", "treasury:update", "treasury:delete",
   "accounting:read", "accounting:create", "accounting:update", "accounting:delete",
   "reports:read",

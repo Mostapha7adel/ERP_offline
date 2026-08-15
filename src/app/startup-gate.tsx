@@ -114,10 +114,9 @@ function BackendScreen({ status }: { status: BackendStatus }) {
           </div>
           <h1 className="text-lg font-semibold">Backend failed to start</h1>
           <p className="text-sm text-muted-foreground">
-            The local service did not become ready within the time limit. This is
-            usually a one-time delay while the database is created, or another
-            program using port 3000. Check the diagnostic log below, or try
-            again.
+            The local service did not become ready within the time limit. This
+            is usually a one-time delay while the database is created. Check the
+            diagnostic log below, or try again.
           </p>
           <Button className="w-full" onClick={() => window.location.reload()}>
             Retry
@@ -158,7 +157,9 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status !== "ready") return;
     void validateSession().then((valid) => {
-      if (valid && useAuthStore.getState().isAuthenticated) void hydrateAll();
+      if (valid && useAuthStore.getState().isAuthenticated) {
+        void hydrateAll().finally(() => useAuthStore.getState().setHydrated());
+      }
     });
   }, [status, validateSession]);
 

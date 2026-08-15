@@ -13,7 +13,7 @@ import { auditService } from "../../core/audit/audit.service.js";
 import { productRepository } from "../products/product.repository.js";
 import { partyRepository } from "../parties/party.repository.js";
 import { warehouseRepository } from "../warehouses/warehouse.repository.js";
-import { applyLineStock } from "../inventory/inventory.service.js";
+import { applyLineStock, recordBatch, consumeBatches } from "../inventory/inventory.service.js";
 import { stockItemRepository } from "../inventory/inventory.repository.js";
 import { notificationService } from "../notifications/notification.service.js";
 import { withTransaction } from "../../core/database/transaction.js";
@@ -29,6 +29,8 @@ interface ComputedLine {
   discount: number;
   taxRate: number;
   lineTotal: number;
+  batchNumber?: string;
+  expiryDate?: string;
 }
 
 export class InvoiceService {
@@ -67,6 +69,8 @@ export class InvoiceService {
         discount: line.discount,
         taxRate: line.taxRate,
         lineTotal,
+        batchNumber: line.batchNumber,
+        expiryDate: line.expiryDate,
       });
     }
     return result;
@@ -118,6 +122,7 @@ export class InvoiceService {
           status: "issued",
           paymentMethod: validated.paymentMethod,
           notes: validated.notes,
+          quoteId: validated.quoteId,
           createdBy: principalId,
         },
       });
@@ -138,6 +143,18 @@ export class InvoiceService {
               cost: this.type === "purchase" ? cost : undefined,
               actor: audit.principal,
             });
+            if (this.type === "purchase") {
+              await recordBatch({
+                productId: line.productId,
+                warehouseId: validated.warehouseId,
+                batchNumber: line.batchNumber || invoice.number,
+                quantity: line.quantity,
+                expiryDate: line.expiryDate,
+                createdBy: principalId,
+              });
+            } else {
+              await consumeBatches(line.productId, validated.warehouseId, line.quantity);
+            }
           }
         }
       }

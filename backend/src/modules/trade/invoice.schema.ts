@@ -8,6 +8,8 @@ export const invoiceLineSchema = z.object({
   unitPrice: z.number().nonnegative(),
   discount: z.number().nonnegative().default(0),
   taxRate: z.number().min(0).max(100).default(0),
+  batchNumber: z.string().optional(),
+  expiryDate: z.string().optional(),
 });
 
 export const invoiceCreateSchema = z.object({
@@ -26,6 +28,8 @@ export const invoiceCreateSchema = z.object({
   paymentAccountId: z.string().optional(),
   received: z.boolean().optional(),
   notes: z.string().max(2000).optional(),
+  /** Optional id of the quote this invoice was converted from. */
+  quoteId: z.string().optional(),
 });
 
 export const invoiceUpdateSchema = z.object({
@@ -73,6 +77,7 @@ export const invoiceSchema = z.object({
   status: z.enum(["draft", "issued", "partial", "paid", "void"]),
   paymentMethod: z.string().optional(),
   notes: z.string().optional(),
+  quoteId: z.string().optional(),
   createdBy: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),

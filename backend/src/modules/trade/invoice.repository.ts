@@ -49,6 +49,7 @@ export class InvoiceRepository extends PrismaRepository<Invoice> {
       status: row.status as Invoice["status"],
       paymentMethod: row.paymentMethod ? PAY_FROM_DB[String(row.paymentMethod)] ?? String(row.paymentMethod) : undefined,
       notes: row.notes ? String(row.notes) : undefined,
+      quoteId: row.quoteId ? String(row.quoteId) : undefined,
       createdBy: String(row.createdBy),
       createdAt: this.toISO(row.createdAt)!,
       updatedAt: this.toISO(row.updatedAt)!,

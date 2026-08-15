@@ -11,6 +11,8 @@ export interface InvoiceLine {
   discount: number;
   taxRate: number;
   lineTotal: number;
+  batchNumber?: string;
+  expiryDate?: string;
 }
 
 export interface Invoice {
@@ -32,6 +34,7 @@ export interface Invoice {
   status: InvoiceStatus;
   paymentMethod?: string;
   notes?: string;
+  quoteId?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

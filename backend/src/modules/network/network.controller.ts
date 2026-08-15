@@ -28,6 +28,7 @@ const statusSchema = z.object({
   workspaceReady: z.boolean(),
   serverTime: z.string(),
   hostIps: z.array(z.string()),
+  port: z.number(),
 });
 
 export function registerNetworkController(app: FastifyInstance): void {

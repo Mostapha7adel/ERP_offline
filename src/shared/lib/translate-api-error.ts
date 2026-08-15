@@ -174,6 +174,40 @@ const MATCHERS: ErrorMatcher[] = [
     regex: /^Journal entry must be balanced \(debits must equal credits\)$/,
     build: () => ["Journal entry must be balanced (debits must equal credits)", "يجب أن يكون قيد اليومية متوازناً (المدين = الدائن)"],
   },
+  {
+    regex: /^Fiscal year overlaps with "(.+)" \(.+\)$/,
+    build: ([, name]) => [
+      `This period overlaps with the fiscal year "${name}"`,
+      `هذه الفترة تتداخل مع السنة المالية «${name}»`,
+    ],
+  },
+  {
+    regex: /^Fiscal year is already closed$/,
+    build: () => ["This fiscal year is already closed", "السنة المالية هذه مقفلة بالفعل"],
+  },
+  {
+    regex: /^Start date must be before the end date$/,
+    build: () => ["The start date must be before the end date", "يجب أن يكون تاريخ البداية قبل تاريخ النهاية"],
+  },
+  {
+    regex: /^Journal date (.+) falls within the closed fiscal year "(.+)"\./,
+    build: ([, date, name]) => [
+      `Journal date ${date} falls within the closed fiscal year "${name}"`,
+      `تاريخ القيد ${date} يقع ضمن السنة المالية المقفلة «${name}»`,
+    ],
+  },
+  {
+    regex: /^Cannot add a note to a void invoice$/,
+    build: () => ["Cannot add a note to a cancelled invoice", "لا يمكن إضافة إشعار إلى فاتورة ملغاة"],
+  },
+  {
+    regex: /^Sales notes must reference a customer$/,
+    build: () => ["Sales notes must reference a customer", "إشعارات المبيعات يجب أن ترتبط بعميل"],
+  },
+  {
+    regex: /^Purchase notes must reference a supplier$/,
+    build: () => ["Purchase notes must reference a supplier", "إشعارات الشراء يجب أن ترتبط بمورّد"],
+  },
 ];
 
 export function translateApiError(error: unknown, t: TranslateFn): string {

@@ -54,6 +54,20 @@ export const PERMISSIONS = {
   "purchases:create": "purchases:create",
   "purchases:update": "purchases:update",
   "purchases:void": "purchases:void",
+  "quotes:read": "quotes:read",
+  "quotes:create": "quotes:create",
+  "quotes:update": "quotes:update",
+  "quotes:delete": "quotes:delete",
+  "recurring:read": "recurring:read",
+  "recurring:create": "recurring:create",
+  "recurring:update": "recurring:update",
+  "recurring:delete": "recurring:delete",
+
+  // Credit / debit notes
+  "notes:read": "notes:read",
+  "notes:create": "notes:create",
+  "notes:update": "notes:update",
+  "notes:void": "notes:void",
 
   // Finance
   "treasury:read": "treasury:read",

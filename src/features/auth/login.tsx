@@ -49,6 +49,7 @@ export function LoginPage() {
     try {
       const user = await login(email, password, remember);
       await hydrateAll();
+      useAuthStore.getState().setHydrated();
       toast.success(t("Welcome back, ", "مرحباً بعودتك، ") + user.name.split(" ")[0]);
       navigate("/app/dashboard");
     } catch (error) {

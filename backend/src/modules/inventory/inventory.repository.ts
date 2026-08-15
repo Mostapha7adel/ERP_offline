@@ -1,5 +1,5 @@
 import { PrismaRepository } from "../../core/repository/base-repository.js";
-import type { StockItem, StockMovement } from "./inventory.entity.js";
+import type { StockItem, StockMovement, Batch } from "./inventory.entity.js";
 
 type Row = Record<string, unknown>;
 
@@ -114,5 +114,38 @@ export class StockMovementRepository extends PrismaRepository<StockMovement> {
   }
 }
 
+export class BatchRepository extends PrismaRepository<Batch> {
+  protected model = "batch";
+  protected searchFields = ["batchNumber", "productId"];
+
+  protected toEntity(row: Row): Batch {
+    return {
+      id: String(row.id),
+      productId: String(row.productId),
+      warehouseId: String(row.warehouseId),
+      batchNumber: String(row.batchNumber),
+      quantity: Number(row.quantity),
+      expiryDate: this.toISO(row.expiryDate),
+      receivedAt: this.toISO(row.receivedAt)!,
+      createdBy: String(row.createdBy),
+      createdAt: this.toISO(row.createdAt)!,
+      updatedAt: this.toISO(row.updatedAt)!,
+    };
+  }
+
+  async byProductWarehouse(productId: string, warehouseId: string): Promise<Batch[]> {
+    const all = await this.findAll();
+    return all.filter((b) => b.productId === productId && b.warehouseId === warehouseId);
+  }
+
+  async findByBatchNumber(productId: string, warehouseId: string, batchNumber: string): Promise<Batch | undefined> {
+    const all = await this.findAll();
+    return all.find(
+      (b) => b.productId === productId && b.warehouseId === warehouseId && b.batchNumber === batchNumber,
+    );
+  }
+}
+
 export const stockItemRepository = new StockItemRepository();
 export const stockMovementRepository = new StockMovementRepository();
+export const batchRepository = new BatchRepository();

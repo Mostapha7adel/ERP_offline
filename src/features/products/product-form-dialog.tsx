@@ -55,6 +55,7 @@ export function ProductFormDialog({
     resolver: zodResolver(productSchema),
     defaultValues: {
       sku: product?.sku ?? nextSku,
+      barcode: product?.barcode ?? "",
       name: product?.name ?? "",
       category: product?.category ?? (categories[0] ?? "General"),
       unit: product?.unit ?? "pc",
@@ -73,6 +74,7 @@ export function ProductFormDialog({
     if (!open) return;
     form.reset({
       sku: product?.sku ?? nextSku,
+      barcode: product?.barcode ?? "",
       name: product?.name ?? "",
       category: product?.category ?? (categories[0] ?? "General"),
       unit: product?.unit ?? "pc",
@@ -89,6 +91,7 @@ export function ProductFormDialog({
     try {
       const input = {
         sku: values.sku.trim() || undefined,
+        barcode: values.barcode?.trim() || undefined,
         name: values.name.trim(),
         category: values.category,
         unit: values.unit,
@@ -144,6 +147,19 @@ export function ProductFormDialog({
                     <FormLabel>SKU</FormLabel>
                     <FormControl>
                       <Input placeholder={nextSku} disabled={isEdit} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="barcode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("Barcode", "الباركود")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 6221047000460" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

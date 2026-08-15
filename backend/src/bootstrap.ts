@@ -36,6 +36,11 @@ function resolveDataDir(): string {
   return join(appData, "LedgerFlow");
 }
 
+/** Public accessor so other modules can persist runtime state next to the DB. */
+export function dataDir(): string {
+  return resolveDataDir();
+}
+
 function prismaEngineFileName(): string {
   const platform = process.platform;
   const arch = process.arch;

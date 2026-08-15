@@ -72,7 +72,7 @@ describe("E2E API smoke", () => {
   it("health endpoint is public", async () => {
     const res = await app.inject({ method: "GET", url: "/health" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: "ok" });
+    expect(res.json()).toEqual({ status: "ok", port: expect.any(Number) });
   });
 
   it("login returns tokens and admin principal", async () => {

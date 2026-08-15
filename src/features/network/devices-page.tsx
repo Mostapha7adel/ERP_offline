@@ -29,6 +29,7 @@ export function DevicesPage() {
   const [workspace, setWorkspace] = useState<NetworkWorkspace | null>(null);
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
   const [hostIps, setHostIps] = useState<string[]>([]);
+  const [hostPort, setHostPort] = useState<number>(3000);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -46,6 +47,7 @@ export function DevicesPage() {
     setWorkspace(ws);
     setDevices(list ?? []);
     setHostIps(status?.hostIps ?? []);
+    if (status?.port) setHostPort(status.port);
     setLoading(false);
   }, [isSuperAdmin, canView]);
 
@@ -187,8 +189,8 @@ export function DevicesPage() {
               </div>
               {hostIps.length > 0 ? (
                 <div className="rounded-lg border bg-muted/40 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">{t("Host IP (share this)", "عنوان الخادم (شاركه)")}</p>
-                  <p className="font-mono text-sm font-medium">{hostIps.join(" · ")}</p>
+                  <p className="text-xs text-muted-foreground">{t("Host address (share this)", "عنوان الخادم (شاركه)")}</p>
+                  <p className="font-mono text-sm font-medium">{hostIps.map((ip) => `${ip}:${hostPort}`).join(" · ")}</p>
                 </div>
               ) : null}
               <Button variant="outline" onClick={() => void copyCode()}>

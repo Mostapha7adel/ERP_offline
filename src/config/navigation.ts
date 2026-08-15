@@ -7,6 +7,8 @@ import {
   LayoutList,
   Laptop,
   Package,
+  ReceiptText,
+  CalendarClock,
   RotateCcw,
   Settings,
   Shield,
@@ -16,6 +18,8 @@ import {
   Truck,
   Users,
   Wallet,
+  FileText,
+  Repeat,
   type LucideIcon,
 } from "lucide-react";
 import type { NavSection } from "@/types/navigation";
@@ -101,6 +105,30 @@ export const NAV_SECTIONS: NavSection[] = [
         permission: "purchases.view",
         keywords: "bills purchase orders expenses",
       },
+      {
+        title: "Quotes",
+        titleAr: "عروض الأسعار",
+        href: "/app/quotes",
+        icon: FileText,
+        permission: "quotes.view",
+        keywords: "quotations estimates proposals quotes",
+      },
+      {
+        title: "Recurring",
+        titleAr: "الفواتير الدورية",
+        href: "/app/recurring",
+        icon: Repeat,
+        permission: "recurring.view",
+        keywords: "subscriptions recurring automatic repeat",
+      },
+      {
+        title: "Notes",
+        titleAr: "الإشعارات الدائنة والمدينة",
+        href: "/app/notes",
+        icon: ReceiptText,
+        permission: "notes.view",
+        keywords: "credit notes debit notes refunds returns adjustments",
+      },
     ],
   },
   {
@@ -122,6 +150,14 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Landmark,
         permission: "accounting.view",
         keywords: "chart of accounts journal ledger entries",
+      },
+      {
+        title: "Fiscal Year",
+        titleAr: "السنة المالية",
+        href: "/app/fiscal-year",
+        icon: CalendarClock,
+        permission: "accounting.view",
+        keywords: "fiscal year closing retained earnings period lock",
       },
       {
         title: "Reports",

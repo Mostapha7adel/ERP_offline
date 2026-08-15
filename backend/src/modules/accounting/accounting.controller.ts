@@ -165,11 +165,13 @@ export function registerAccountingController(app: FastifyInstance): void {
   typed.get("/accounting/trial-balance", {
     preHandler: requirePermission(PERMISSIONS["accounting:read"]),
     schema: {
-      description: "Trial balance (debits vs credits)",
+      description: "Trial balance (debits vs credits), optionally scoped to a fiscal year",
       security: [{ bearerAuth: [] }],
+      querystring: z.object({ fiscalYearId: z.string().optional() }),
       response: { 200: z.object({ success: z.literal(true), data: z.any() }) },
     },
-  }, async () => {
-    return ok(await accountingService.getTrialBalance());
+  }, async (request) => {
+    const { fiscalYearId } = request.query as Record<string, unknown>;
+    return ok(await accountingService.getTrialBalance(fiscalYearId ? String(fiscalYearId) : undefined));
   });
 }

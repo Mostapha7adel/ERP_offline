@@ -34,3 +34,16 @@ export interface StockMovement {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface Batch {
+  id: string;
+  productId: string;
+  warehouseId: string;
+  batchNumber: string;
+  quantity: number;
+  expiryDate?: string;
+  receivedAt: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}

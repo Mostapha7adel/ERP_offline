@@ -2,8 +2,12 @@ import { useCustomersStore, useSuppliersStore } from "@/stores/parties-store";
 import { useProductsStore } from "@/stores/products-store";
 import { useWarehousesStore, useInventoryStore } from "@/stores/inventory-store";
 import { useInvoicesStore } from "@/stores/invoices-store";
+import { useQuotesStore } from "@/stores/quotes-store";
+import { useRecurringStore } from "@/stores/recurring-store";
 import { useBankAccountsStore, useTransactionsStore } from "@/stores/treasury-store";
 import { useAccountsStore, useJournalStore } from "@/stores/accounting-store";
+import { useNotesStore } from "@/stores/notes-store";
+import { useFiscalYearsStore } from "@/stores/fiscal-year-store";
 import { useUsersStore, useRolesStore, useAuditLogsStore } from "@/stores/system-store";
 import { useNotificationsStore } from "@/stores/notifications-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -15,8 +19,12 @@ import {
   warehousesApi,
   inventoryApi,
   invoicesApi,
+  quotesApi,
+  recurringApi,
   treasuryApi,
   accountingApi,
+  notesApi,
+  fiscalYearApi,
   usersApi,
   rolesApi,
   auditApi,
@@ -35,8 +43,12 @@ export async function hydrateAll(): Promise<void> {
     hydrateWarehouses(),
     hydrateInventory(),
     hydrateInvoices(),
+    hydrateQuotes(),
+    hydrateRecurring(),
     hydrateTreasury(),
     hydrateAccounting(),
+    hydrateNotes(),
+    hydrateFiscalYears(),
     hydrateUsersAndRoles(),
     hydrateAudit(),
     hydrateSettings(),
@@ -105,6 +117,30 @@ export async function hydrateInvoices(): Promise<void> {
   }
 }
 
+export async function hydrateQuotes(): Promise<void> {
+  try {
+    const [sales, purchases] = await Promise.all([
+      quotesApi().list("sale"),
+      quotesApi().list("purchase"),
+    ]);
+    useQuotesStore.getState().hydrate([...sales, ...purchases]);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateRecurring(): Promise<void> {
+  try {
+    const [sales, purchases] = await Promise.all([
+      recurringApi().list("sale"),
+      recurringApi().list("purchase"),
+    ]);
+    useRecurringStore.getState().hydrate([...sales, ...purchases]);
+  } catch {
+    // keep existing data
+  }
+}
+
 export async function hydrateTreasury(): Promise<void> {
   try {
     const [accounts, transactions] = await Promise.all([
@@ -126,6 +162,24 @@ export async function hydrateAccounting(): Promise<void> {
     ]);
     useAccountsStore.getState().hydrate(accounts);
     useJournalStore.getState().hydrate(journals.entries);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateNotes(): Promise<void> {
+  try {
+    const notes = await notesApi().list();
+    useNotesStore.getState().hydrate(notes);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateFiscalYears(): Promise<void> {
+  try {
+    const years = await fiscalYearApi().list();
+    useFiscalYearsStore.getState().hydrate(years);
   } catch {
     // keep existing data
   }

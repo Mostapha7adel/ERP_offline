@@ -39,6 +39,10 @@ interface AuthState {
   needsSetup: boolean;
   /** True while the persisted session is being validated against the backend at boot. */
   isSessionValidating: boolean;
+  /** True once the app data has been fetched from the backend into the stores. */
+  hydrated: boolean;
+  /** Mark app data as loaded from the backend. */
+  setHydrated: () => void;
   /** Frontend permission keys resolved from the backend principal. */
   permissions: PermissionKey[];
   /** True when the signed-in user holds the super-admin wildcard. */
@@ -66,8 +70,11 @@ export const useAuthStore = create<AuthState>()(
       mustChangePassword: false,
       needsSetup: false,
       isSessionValidating: false,
+      hydrated: false,
       permissions: initialPermissions,
       isSuperAdmin: false,
+
+      setHydrated: () => set({ hydrated: true }),
 
       login: async (email, password, remember = true) => {
         const result = await authApi().login({ email, password });
@@ -121,6 +128,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           mustChangePassword: false,
           needsSetup: false,
+          hydrated: false,
           permissions: initialPermissions,
           isSuperAdmin: false,
         });
@@ -177,6 +185,7 @@ export const useAuthStore = create<AuthState>()(
           set({
             currentUser: null,
             isAuthenticated: false,
+            hydrated: false,
             permissions: initialPermissions,
           });
           return false;

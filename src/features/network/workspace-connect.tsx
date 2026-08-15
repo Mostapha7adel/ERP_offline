@@ -36,7 +36,34 @@ type JoinValues = z.infer<typeof joinSchema>;
 
 function normalizeHost(value: string): string {
   const trimmed = value.trim();
-  return trimmed.replace(/^https?:\/\//, "").replace(/:\d+$/, "");
+  return trimmed.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
+
+/** True when the address already carries a port (e.g. "192.168.1.10:3005"). */
+function hostHasPort(host: string): boolean {
+  return /^[^:]+:\d+$/.test(host);
+}
+
+/**
+ * Discover the host's backend port. The host starts on 3000 but falls back to
+ * 3001+ when another program holds 3000, so we ask the public `/network/status`
+ * endpoint before joining.
+ */
+async function discoverHostPort(host: string): Promise<string> {
+  try {
+    const res = await fetch(`http://${host}:3000/api/v1/network/status`, {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const body = (await res.json()) as { data?: { port?: number } };
+      const port = body.data?.port;
+      if (typeof port === "number" && port > 0 && port !== 3000) return String(port);
+    }
+  } catch {
+    // host unreachable on the default port — join will surface the error
+  }
+  return "3000";
 }
 
 /**
@@ -70,18 +97,21 @@ export function WorkspaceConnect() {
       const host = normalizeHost(values.host);
       const deviceId = getDeviceId();
       const deviceName = values.deviceName.trim();
-      // Point the API at the host first so the join request reaches it, and
-      // drop any local session so no stale token is attached to host calls.
-      saveDeviceConfig({ mode: "client", host, deviceName });
+      // A port typed explicitly (e.g. "192.168.1.10:3005") wins. Otherwise ask
+      // the host's public /network/status for its real backend port (it may
+      // have fallen back from 3000), then point the API at the host and drop
+      // any local session so no stale token is attached to host calls.
+      const hostAddress = hostHasPort(host) ? host : `${host}:${await discoverHostPort(host)}`;
+      saveDeviceConfig({ mode: "client", host: hostAddress, deviceName });
       clearTokens();
       const result = await networkApi().join({
         code: values.code.trim().toUpperCase(),
         deviceId,
         deviceName,
       });
-      saveDeviceConfig({ mode: "client", host, deviceName, token: result.token });
+      saveDeviceConfig({ mode: "client", host: hostAddress, deviceName, token: result.token });
       setConnected(true);
-      setHost(host);
+      setHost(hostAddress);
       setExpanded(false);
       toast.success(t("Connected to the workspace. Sign in with your account.", "تم الاتصال بالمساحة. سجّل الدخول بحسابك."));
     } catch (error) {

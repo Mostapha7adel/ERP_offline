@@ -6,6 +6,9 @@ import { productRepository } from "../products/product.repository.js";
 import { partyRepository } from "../parties/party.repository.js";
 import { stockItemRepository } from "../inventory/inventory.repository.js";
 import { treasuryTransactionRepository, treasuryAccountRepository } from "../treasury/treasury.repository.js";
+import { noteRepository } from "../notes/note.repository.js";
+import { accountingService } from "../accounting/accounting.service.js";
+import { AppError } from "../../core/errors/app-error.js";
 import { PERMISSIONS } from "../../core/security/permissions.js";
 import { ok } from "../../core/response/response.js";
 import { requirePermission } from "../../core/security/rbac.js";
@@ -285,6 +288,178 @@ export function registerReportsController(app: FastifyInstance): void {
       outputTax,
       inputTax,
       netPayable: round2(outputTax - inputTax),
+    });
+  });
+
+  typed.get("/reports/balance-sheet", {
+    preHandler: read,
+    schema: {
+      description: "Balance sheet statement (assets, liabilities, equity)",
+      security: [{ bearerAuth: [] }],
+      querystring: z.object({ asOf: z.string().optional() }),
+      response: { 200: z.object({ success: z.literal(true), data: z.any() }) },
+    },
+  }, async () => {
+    const chart = await accountingService.getChart();
+    const byClass = (type: string) =>
+      chart
+        .filter((a) => a.type === type)
+        .map((a) => ({ code: a.code, name: a.name, balance: round2(a.balance) }))
+        .sort((a, b) => a.code.localeCompare(b.code));
+
+    const assets = byClass("asset");
+    const liabilities = byClass("liability");
+    const equity = byClass("equity");
+
+    const totalAssets = round2(assets.reduce((s, a) => s + a.balance, 0));
+    const totalLiabilities = round2(liabilities.reduce((s, a) => s + a.balance, 0));
+    const totalEquity = round2(equity.reduce((s, a) => s + a.balance, 0));
+
+    // Retained earnings = current-period net profit when the chart doesn't yet
+    // hold a closed P&L balance. We derive it from posted revenue/expense
+    // accounts so the balance sheet balances.
+    const revenue = round2(chart.filter((a) => a.type === "revenue").reduce((s, a) => s + a.balance, 0));
+    const expenses = round2(chart.filter((a) => a.type === "expense").reduce((s, a) => s + a.balance, 0));
+    const netProfit = round2(revenue - expenses);
+
+    return ok({
+      sections: {
+        assets: { label: "Assets", rows: assets, total: totalAssets },
+        liabilities: { label: "Liabilities", rows: liabilities, total: totalLiabilities },
+        equity: { label: "Equity", rows: equity, total: totalEquity },
+      },
+      retainedEarnings: round2(totalEquity - netProfit),
+      netProfit,
+      totalAssets,
+      totalLiabilitiesAndEquity: round2(totalLiabilities + totalEquity),
+      balanced: Math.abs(totalAssets - round2(totalLiabilities + totalEquity)) < 0.01,
+    });
+  });
+
+  typed.get("/reports/customer-ledger", {
+    preHandler: read,
+    schema: {
+      description: "Open invoices per customer (customer ledger)",
+      security: [{ bearerAuth: [] }],
+      querystring: z.object({ customerId: z.string().optional() }),
+      response: { 200: z.object({ success: z.literal(true), data: z.any() }) },
+    },
+  }, async (request) => {
+    const { customerId } = request.query as Record<string, unknown>;
+    const all = await invoiceRepository.findAll();
+    const sales = all.filter(
+      (inv) => inv.type === "sales" && inv.status !== "void",
+    );
+    const byCustomer: Record<string, { name: string; open: number; paid: number; invoices: Array<Record<string, unknown>> }> = {};
+    for (const inv of sales) {
+      const id = inv.customerId ?? "unknown";
+      if (customerId && id !== customerId) continue;
+      const customer = id !== "unknown" ? await partyRepository.findById(id) : undefined;
+      const name = customer?.name ?? "Unknown";
+      const entry = byCustomer[id] ?? { name, open: 0, paid: 0, invoices: [] };
+      entry.open += inv.total - inv.paidAmount;
+      entry.paid += inv.paidAmount;
+      entry.invoices.push({
+        id: inv.id,
+        number: inv.number,
+        invoiceDate: inv.invoiceDate,
+        dueDate: inv.dueDate,
+        total: inv.total,
+        paidAmount: inv.paidAmount,
+        balance: round2(inv.total - inv.paidAmount),
+        status: inv.status,
+      });
+      byCustomer[id] = entry;
+    }
+    return ok({
+      customers: Object.entries(byCustomer)
+        .map(([id, c]) => ({ customerId: id, name: c.name, open: round2(c.open), paid: round2(c.paid), invoices: c.invoices }))
+        .sort((a, b) => b.open - a.open),
+    });
+  });
+
+  typed.get("/reports/party-statement", {
+    preHandler: read,
+    schema: {
+      description: "Customer/supplier statement (كشف حساب) with running balance across invoices, payments and notes",
+      security: [{ bearerAuth: [] }],
+      querystring: z.object({ partyId: z.string(), from: z.string().optional(), to: z.string().optional() }),
+      response: { 200: z.object({ success: z.literal(true), data: z.any() }) },
+    },
+  }, async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const { from, to } = dateRange(query);
+    const partyId = String(query.partyId);
+    const party = await partyRepository.findById(partyId);
+    if (!party) throw AppError.notFound("Party not found");
+    const kind = party.type === "customer" ? "sales" : "purchase";
+
+    // Invoice rows increase the party's balance (what they owe / we owe).
+    const allInvoices = await invoiceRepository.findAll();
+    const entries: Array<{ date: string; kind: string; ref: string; description: string; debit: number; credit: number }> = [];
+    for (const inv of allInvoices) {
+      const linked = party.type === "customer" ? inv.customerId === party.id : inv.supplierId === party.id;
+      if (inv.type === kind && inv.status !== "void" && linked) {
+        entries.push({
+          date: inv.invoiceDate,
+          kind: "invoice",
+          ref: inv.number,
+          description: inv.type === "sales" ? "Sales invoice" : "Purchase invoice",
+          debit: round2(inv.total),
+          credit: 0,
+        });
+      }
+    }
+
+    // Payments reduce the balance (money in from customers / out to suppliers).
+    for (const t of await treasuryTransactionRepository.findAll()) {
+      const isPayment =
+        (party.type === "customer" && t.type === "income") ||
+        (party.type === "supplier" && t.type === "expense");
+      if (isPayment && t.partyId === party.id) {
+        entries.push({
+          date: t.date,
+          kind: "payment",
+          ref: t.reference ?? "",
+          description: t.description ?? "",
+          debit: 0,
+          credit: round2(t.amount),
+        });
+      }
+    }
+
+    // Credit notes reduce, debit notes increase.
+    for (const n of await noteRepository.byParty(party.id, kind)) {
+      entries.push({
+        date: n.noteDate,
+        kind: n.noteType === "credit" ? "credit-note" : "debit-note",
+        ref: n.number,
+        description: n.noteType === "credit" ? "Credit note" : "Debit note",
+        debit: n.noteType === "debit" ? round2(n.total) : 0,
+        credit: n.noteType === "credit" ? round2(n.total) : 0,
+      });
+    }
+
+    const order = { "invoice": 0, "debit-note": 1, "credit-note": 2, "payment": 3 };
+    const sortEntries = (a: { date: string; kind: string }, b: { date: string; kind: string }) =>
+      a.date.localeCompare(b.date) || (order[a.kind as keyof typeof order] ?? 9) - (order[b.kind as keyof typeof order] ?? 9);
+
+    const opening = round2(entries.filter((e) => e.date < from).reduce((s, e) => s + e.debit - e.credit, 0));
+    let running = opening;
+    const rows = entries
+      .filter((e) => e.date >= from && e.date <= to)
+      .sort(sortEntries)
+      .map((e) => {
+        running = round2(running + e.debit - e.credit);
+        return { ...e, runningBalance: running };
+      });
+
+    return ok({
+      party: { id: party.id, name: party.name, type: party.type },
+      period: { from, to },
+      openingBalance: opening,
+      closingBalance: running,
+      rows,
     });
   });
 

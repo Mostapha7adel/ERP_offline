@@ -47,6 +47,7 @@ export interface Product {
   description: string;
   status: ProductStatus;
   createdAt: ISOString;
+  barcode?: string;
 }
 
 export type WarehouseStatus = "active" | "inactive";
@@ -68,8 +69,8 @@ export interface StockItem {
   warehouseId: ID;
   quantity: number;
   committed: number;
-  batchNumber: string;
-  expiryDate: ISOString;
+  batchNumber?: string;
+  expiryDate?: string;
 }
 
 export type InvoiceStatus = "draft" | "pending" | "paid" | "overdue" | "cancelled";
@@ -104,6 +105,107 @@ export interface Invoice {
   warehouseName?: string;
   received?: boolean;
   lines: InvoiceLine[];
+  note?: string;
+  quoteId?: ID;
+  createdBy: ID;
+  createdAt: ISOString;
+}
+
+export type QuoteStatus = "draft" | "sent" | "accepted" | "rejected" | "expired" | "converted";
+
+export interface QuoteLine {
+  id: ID;
+  productId?: ID;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+  discount: number;
+  lineTotal: number;
+}
+
+export interface Quote {
+  id: ID;
+  kind: InvoiceKind;
+  number: string;
+  partyId: ID;
+  partyName?: string;
+  quoteDate: ISOString;
+  validUntil?: ISOString;
+  warehouseId?: ID;
+  warehouseName?: string;
+  status: QuoteStatus;
+  currency: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  lines: QuoteLine[];
+  note?: string;
+  createdBy: ID;
+  createdAt: ISOString;
+}
+
+export type TradeNoteType = "credit" | "debit";
+export type TradeNoteStatus = "issued" | "void";
+
+export interface TradeNoteLine {
+  id: ID;
+  productId?: ID;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+export interface TradeNote {
+  id: ID;
+  type: "sales" | "purchase";
+  noteType: TradeNoteType;
+  number: string;
+  invoiceId?: ID;
+  partyId?: ID;
+  warehouseId?: ID;
+  noteDate: ISOString;
+  lines: TradeNoteLine[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  status: TradeNoteStatus;
+  reason?: string;
+  notes?: string;
+  createdBy: ID;
+  createdAt: ISOString;
+  partyName?: string;
+  invoiceNumber?: string;
+  warehouseName?: string;
+}
+
+export type RecurringFrequency = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+
+export interface RecurringInvoice {
+  id: ID;
+  kind: InvoiceKind;
+  number: string;
+  partyId: ID;
+  partyName?: string;
+  warehouseId?: ID;
+  warehouseName?: string;
+  frequency: RecurringFrequency;
+  interval: number;
+  nextRunDate: ISOString;
+  lastRunAt?: ISOString;
+  status: "active" | "inactive";
+  currency: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  lines: QuoteLine[];
   note?: string;
   createdBy: ID;
   createdAt: ISOString;
@@ -145,6 +247,43 @@ export interface JournalEntry {
   lines: JournalEntryLine[];
   createdBy: ID;
   createdAt: ISOString;
+}
+
+export type FiscalYearStatus = "open" | "closed";
+
+export interface FiscalYear {
+  id: ID;
+  name: string;
+  startDate: ISOString;
+  endDate: ISOString;
+  status: FiscalYearStatus;
+  closingJournalId?: ID;
+  closedAt?: ISOString;
+  closedBy?: ID;
+  notes?: string;
+  revenue: number;
+  expenses: number;
+  netProfit: number;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+}
+
+export interface PartyStatementRow {
+  date: ISOString;
+  kind: "invoice" | "payment" | "credit-note" | "debit-note";
+  ref: string;
+  description: string;
+  debit: number;
+  credit: number;
+  runningBalance: number;
+}
+
+export interface PartyStatement {
+  party: { id: ID; name: string; type: PartyType };
+  period: { from: string; to: string };
+  openingBalance: number;
+  closingBalance: number;
+  rows: PartyStatementRow[];
 }
 
 export type BankAccountType = "checking" | "savings" | "cash" | "credit";

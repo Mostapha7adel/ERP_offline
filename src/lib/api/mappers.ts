@@ -5,6 +5,14 @@ import type {
   StockItem,
   Invoice,
   InvoiceLine,
+  Quote,
+  QuoteLine,
+  QuoteStatus,
+  RecurringInvoice,
+  RecurringFrequency,
+  TradeNote,
+  TradeNoteLine,
+  FiscalYear,
   Account,
   JournalEntry,
   JournalEntryLine,
@@ -107,6 +115,7 @@ export function mapProduct(p: BackendProduct): Product {
     description: p.description ?? "",
     status: p.status === "active" ? "active" : "inactive",
     createdAt: p.createdAt,
+    barcode: p.barcode ?? undefined,
   };
 }
 
@@ -155,8 +164,6 @@ export function mapStockItem(s: BackendStockItem): StockItem {
     warehouseId: s.warehouseId,
     quantity: s.quantityOnHand,
     committed: s.reservedQuantity,
-    batchNumber: "",
-    expiryDate: "",
   };
 }
 
@@ -204,6 +211,7 @@ interface BackendInvoice {
   status: "draft" | "issued" | "partial" | "paid" | "void";
   paymentMethod?: string;
   notes?: string;
+  quoteId?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -252,8 +260,255 @@ export function mapInvoice(i: BackendInvoice): Invoice {
     received: i.received,
     lines: (i.lines ?? []).map(mapInvoiceLine),
     note: i.notes,
+    quoteId: i.quoteId,
     createdBy: i.createdBy,
     createdAt: i.createdAt,
+  };
+}
+
+interface BackendQuoteLine {
+  id: string;
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+interface BackendQuote {
+  id: string;
+  type: "sales" | "purchase";
+  number: string;
+  partyId?: string;
+  quoteDate: string;
+  validUntil?: string;
+  warehouseId?: string;
+  lines: BackendQuoteLine[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  status: QuoteStatus;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  partyName?: string;
+  warehouseName?: string;
+}
+
+function mapQuoteLine(l: BackendQuoteLine): QuoteLine {
+  return {
+    id: l.id,
+    productId: l.productId,
+    description: l.description ?? l.productName,
+    quantity: l.quantity,
+    unitPrice: l.unitPrice,
+    taxRate: l.taxRate,
+    discount: l.discount,
+    lineTotal: l.lineTotal,
+  };
+}
+
+export function mapQuote(q: BackendQuote): Quote {
+  return {
+    id: q.id,
+    kind: q.type === "sales" ? "sale" : "purchase",
+    number: q.number,
+    partyId: q.partyId ?? "",
+    partyName: q.partyName,
+    quoteDate: q.quoteDate,
+    validUntil: q.validUntil,
+    warehouseId: q.warehouseId,
+    warehouseName: q.warehouseName,
+    status: q.status,
+    currency: "USD",
+    subtotal: q.subtotal,
+    discount: q.discount,
+    tax: q.tax,
+    total: q.total,
+    lines: (q.lines ?? []).map(mapQuoteLine),
+    note: q.notes,
+    createdBy: q.createdBy,
+    createdAt: q.createdAt,
+  };
+}
+
+interface BackendRecurringLine {
+  id: string;
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+interface BackendRecurring {
+  id: string;
+  type: "sales" | "purchase";
+  number: string;
+  partyId?: string;
+  warehouseId?: string;
+  frequency: RecurringFrequency;
+  interval: number;
+  nextRunDate: string;
+  lastRunAt?: string;
+  lines: BackendRecurringLine[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  isActive: boolean;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  partyName?: string;
+  warehouseName?: string;
+}
+
+export function mapRecurring(r: BackendRecurring): RecurringInvoice {
+  return {
+    id: r.id,
+    kind: r.type === "sales" ? "sale" : "purchase",
+    number: r.number,
+    partyId: r.partyId ?? "",
+    partyName: r.partyName,
+    warehouseId: r.warehouseId,
+    warehouseName: r.warehouseName,
+    frequency: r.frequency,
+    interval: r.interval,
+    nextRunDate: r.nextRunDate,
+    lastRunAt: r.lastRunAt,
+    status: r.isActive ? "active" : "inactive",
+    currency: "USD",
+    subtotal: r.subtotal,
+    discount: r.discount,
+    tax: r.tax,
+    total: r.total,
+    lines: (r.lines ?? []).map((l) => mapQuoteLine(l)),
+    note: r.notes,
+    createdBy: r.createdBy,
+    createdAt: r.createdAt,
+  };
+}
+
+interface BackendTradeNoteLine {
+  id: string;
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+interface BackendTradeNote {
+  id: string;
+  type: "sales" | "purchase";
+  noteType: "credit" | "debit";
+  number: string;
+  invoiceId?: string;
+  partyId?: string;
+  warehouseId?: string;
+  noteDate: string;
+  lines: BackendTradeNoteLine[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  status: "issued" | "void";
+  reason?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  partyName?: string;
+  invoiceNumber?: string;
+  warehouseName?: string;
+}
+
+function mapTradeNoteLine(l: BackendTradeNoteLine): TradeNoteLine {
+  return {
+    id: l.id,
+    productId: l.productId,
+    productName: l.productName,
+    description: l.description,
+    quantity: l.quantity,
+    unitPrice: l.unitPrice,
+    discount: l.discount,
+    taxRate: l.taxRate,
+    lineTotal: l.lineTotal,
+  };
+}
+
+export function mapTradeNote(n: BackendTradeNote): TradeNote {
+  return {
+    id: n.id,
+    type: n.type,
+    noteType: n.noteType,
+    number: n.number,
+    invoiceId: n.invoiceId,
+    partyId: n.partyId,
+    warehouseId: n.warehouseId,
+    noteDate: n.noteDate,
+    lines: (n.lines ?? []).map(mapTradeNoteLine),
+    subtotal: n.subtotal,
+    discount: n.discount,
+    tax: n.tax,
+    total: n.total,
+    status: n.status,
+    reason: n.reason,
+    notes: n.notes,
+    createdBy: n.createdBy,
+    createdAt: n.createdAt,
+    partyName: n.partyName,
+    invoiceNumber: n.invoiceNumber,
+    warehouseName: n.warehouseName,
+  };
+}
+
+interface BackendFiscalYear {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: "open" | "closed";
+  closingJournalId?: string;
+  closedAt?: string;
+  closedBy?: string;
+  notes?: string;
+  revenue?: number;
+  expenses?: number;
+  netProfit?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapFiscalYear(f: BackendFiscalYear): FiscalYear {
+  return {
+    id: f.id,
+    name: f.name,
+    startDate: f.startDate,
+    endDate: f.endDate,
+    status: f.status,
+    closingJournalId: f.closingJournalId,
+    closedAt: f.closedAt,
+    closedBy: f.closedBy,
+    notes: f.notes,
+    revenue: f.revenue ?? 0,
+    expenses: f.expenses ?? 0,
+    netProfit: f.netProfit ?? 0,
+    createdAt: f.createdAt,
+    updatedAt: f.updatedAt,
   };
 }
 

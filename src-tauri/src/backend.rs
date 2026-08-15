@@ -1,9 +1,68 @@
 use std::io::{Read, Write};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
+
+/// Default port the backend tries first (kept in sync with backend/src/config/env.ts).
+const DEFAULT_PORT: u16 = 3000;
+
+/// The port the backend actually bound, discovered after it starts. 0 = unknown.
+static BACKEND_PORT: AtomicU16 = AtomicU16::new(0);
+
+/// File the backend writes after binding (see backend/src/server.ts). Reading it
+/// lets us learn the port even before the first /health probe succeeds.
+fn backend_port_file_path() -> std::path::PathBuf {
+    std::path::Path::new(&data_dir()).join("backend-port")
+}
+
+/// Candidate data dirs the backend may have written its port file into. The
+/// backend's bootstrap resolves `~/.config/LedgerFlow` on non-Windows while the
+/// shell's `data_dir()` prefers `~/Library/Application Support/LedgerFlow`, so
+/// we check both on macOS.
+fn backend_port_file_candidates() -> Vec<std::path::PathBuf> {
+    let dirs = vec![backend_port_file_path()];
+    #[cfg(target_os = "macos")]
+    if let Ok(home) = std::env::var("HOME") {
+        dirs.push(std::path::PathBuf::from(format!("{home}/.config/LedgerFlow")));
+    }
+    dirs
+}
+
+fn read_backend_port_file() -> Option<u16> {
+    for path in backend_port_file_candidates() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(port) = content.trim().parse::<u16>() {
+                if port > 0 {
+                    return Some(port);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn remember_backend_port(port: u16) {
+    BACKEND_PORT.store(port, Ordering::SeqCst);
+}
+
+/// The port the backend is (or will be) on: an already-discovered value, else
+/// the port file, else the default.
+fn resolved_backend_port() -> u16 {
+    let known = BACKEND_PORT.load(Ordering::SeqCst);
+    if known != 0 {
+        return known;
+    }
+    read_backend_port_file().unwrap_or(DEFAULT_PORT)
+}
+
+/// Report the port the backend is listening on, for the frontend. Exposed as a
+/// Tauri command so the webview can point its API calls at the real port.
+#[tauri::command]
+pub fn backend_port() -> u16 {
+    resolved_backend_port()
+}
 
 /// Path of the sidecar process log (stdout + stderr) inside the user data dir.
 /// Kept separate from `tauri-backend.log` (which holds Rust-side diagnostics).
@@ -71,10 +130,10 @@ fn log_line(message: &str) {
     }
 }
 
-/// Perform a single HTTP GET against the backend's `/health` endpoint and
-/// return true only when the body reports `{"status":"ok"}`.
-fn probe_health() -> bool {
-    let addr: std::net::SocketAddr = match "127.0.0.1:3000".parse() {
+/// Perform a single HTTP GET against the backend's `/health` endpoint on one
+/// port and return true only when the body reports `{"status":"ok"}`.
+fn probe_health_on(port: u16) -> bool {
+    let addr: std::net::SocketAddr = match format!("127.0.0.1:{port}").parse() {
         Ok(a) => a,
         Err(_) => return false,
     };
@@ -90,6 +149,22 @@ fn probe_health() -> bool {
                 }
             }
         }
+    }
+    false
+}
+
+/// Probe the discovered port first, then fall back to the default in case the
+/// port file is stale (e.g. a previous session on 3001, but the live backend
+/// now runs on 3000).
+fn probe_health() -> bool {
+    let primary = resolved_backend_port();
+    if probe_health_on(primary) {
+        remember_backend_port(primary);
+        return true;
+    }
+    if primary != DEFAULT_PORT && probe_health_on(DEFAULT_PORT) {
+        remember_backend_port(DEFAULT_PORT);
+        return true;
     }
     false
 }

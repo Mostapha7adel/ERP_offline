@@ -53,7 +53,10 @@ function buildColumns(h: Handlers): ColumnDef<Product, any>[] {
             </div>
             <div>
               <p className="font-medium">{p.name}</p>
-              <p className="text-xs text-muted-foreground">{p.sku}</p>
+              <p className="text-xs text-muted-foreground">
+                {p.sku}
+                {p.barcode ? <span className="ms-1 font-mono text-muted-foreground/70">· {p.barcode}</span> : null}
+              </p>
             </div>
           </div>
         );
@@ -167,7 +170,7 @@ export function ProductsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
-    return items.filter((p) => [p.name, p.sku, p.category].join(" ").toLowerCase().includes(q));
+    return items.filter((p) => [p.name, p.sku, p.category, p.barcode ?? ""].join(" ").toLowerCase().includes(q));
   }, [items, search]);
 
   const handleSave = (product: Product) => {

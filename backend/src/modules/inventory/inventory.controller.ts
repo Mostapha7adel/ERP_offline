@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { stockItemRepository, stockMovementRepository } from "./inventory.repository.js";
-import { applyStockChange } from "./inventory.service.js";
+import { stockItemRepository, stockMovementRepository, batchRepository } from "./inventory.repository.js";
+import { applyStockChange, recordBatch } from "./inventory.service.js";
 import { productRepository } from "../products/product.repository.js";
 import { warehouseRepository } from "../warehouses/warehouse.repository.js";
 import { PERMISSIONS } from "../../core/security/permissions.js";
@@ -185,6 +185,83 @@ export function registerInventoryController(app: FastifyInstance): void {
       return { success: true };
     });
     await auditService.log(getAuditContext(request), "transfer-stock", "inventory", undefined, input);
+    return ok(result);
+  });
+
+  typed.get("/inventory/batches", {
+    preHandler: requirePermission(PERMISSIONS["inventory:read"]),
+    schema: {
+      description: "List tracked batches / lots with expiry",
+      security: [{ bearerAuth: [] }],
+      querystring: z.object({
+        productId: z.string().optional(),
+        warehouseId: z.string().optional(),
+        search: z.string().optional(),
+      }),
+      response: { 200: z.object({ success: z.literal(true), data: z.array(z.any()) }) },
+    },
+  }, async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const all = await batchRepository.findAll();
+    const rows = [];
+    for (const b of all) {
+      if (query.productId && b.productId !== String(query.productId)) continue;
+      if (query.warehouseId && b.warehouseId !== String(query.warehouseId)) continue;
+      const product = await productRepository.findById(b.productId);
+      const warehouse = await warehouseRepository.findById(b.warehouseId);
+      rows.push({ ...b, productName: product?.name, sku: product?.sku, warehouseName: warehouse?.name });
+    }
+    const q = query.search ? String(query.search).toLowerCase() : "";
+    const filtered = q
+      ? rows.filter((r) =>
+          (r.productName ?? "").toLowerCase().includes(q) ||
+          (r.batchNumber ?? "").toLowerCase().includes(q) ||
+          (r.sku ?? "").toLowerCase().includes(q),
+        )
+      : rows;
+    const sorted = [...filtered].sort((a, b) => {
+      if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate);
+      if (a.expiryDate) return -1;
+      if (b.expiryDate) return 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+    return ok(sorted);
+  });
+
+  typed.post("/inventory/batches", {
+    preHandler: requirePermission(PERMISSIONS["inventory:adjust"]),
+    schema: {
+      description: "Manually record a batch / lot into stock",
+      security: [{ bearerAuth: [] }],
+      body: z.object({
+        productId: z.string().min(1),
+        warehouseId: z.string().min(1),
+        batchNumber: z.string().min(1).max(100),
+        quantity: z.number().positive(),
+        expiryDate: z.string().optional(),
+      }),
+      response: { 200: z.object({ success: z.literal(true), data: z.any() }) },
+    },
+  }, async (request) => {
+    const input = request.body;
+    const principalId = request.principal?.sub ?? "system";
+    const result = await withTransaction(async () => {
+      await applyStockChange(
+        { productId: input.productId, warehouseId: input.warehouseId, quantity: input.quantity, reason: "batch-received", note: `Batch ${input.batchNumber}` },
+        principalId,
+        { type: "purchase", cost: 0, actor: request.principal },
+      );
+      await recordBatch({
+        productId: input.productId,
+        warehouseId: input.warehouseId,
+        batchNumber: input.batchNumber,
+        quantity: input.quantity,
+        expiryDate: input.expiryDate,
+        createdBy: principalId,
+      });
+      return { success: true };
+    });
+    await auditService.log(getAuditContext(request), "record-batch", "inventory", input.productId, input);
     return ok(result);
   });
 }

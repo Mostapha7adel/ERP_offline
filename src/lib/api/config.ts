@@ -1,7 +1,9 @@
 export const API_PREFIX = "/api/v1";
 
-/** Local backend by default (standalone mode). */
-export const DEFAULT_API_BASE = "http://127.0.0.1:3000";
+/** Default local backend port (standalone mode). The real port is discovered
+ * from the Tauri shell at startup; this is the fallback in browser/dev mode. */
+export const DEFAULT_API_PORT = 3000;
+export const DEFAULT_API_BASE = `http://127.0.0.1:${DEFAULT_API_PORT}`;
 
 // Device-local network config (per installation, persisted in the webview).
 const NETWORK_MODE_KEY = "ledgerflow:network:mode";
@@ -89,16 +91,61 @@ export function getDefaultDeviceName(): string {
   return `Device-${short}`;
 }
 
+/** True when `host` already carries a port (e.g. "192.168.1.10:3005"). */
+function hostHasPort(host: string): boolean {
+  return /^[^:]+:\d+$/.test(host);
+}
+
 /** Resolve the API base URL for the current device mode. */
 export function getApiBaseUrl(): string {
   const cfg = getDeviceConfig();
-  if (cfg.mode === "client" && cfg.host) return `http://${cfg.host}:3000`;
-  return DEFAULT_API_BASE;
+  if (cfg.mode === "client" && cfg.host) {
+    return hostHasPort(cfg.host) ? `http://${cfg.host}` : `http://${cfg.host}:${DEFAULT_API_PORT}`;
+  }
+  return `http://127.0.0.1:${getBackendPort()}`;
 }
 
 /** Resolve the API root (base + version prefix). */
 export function getApiRoot(): string {
   return `${getApiBaseUrl()}${API_PREFIX}`;
+}
+
+// ---- Dynamic backend port discovery ----
+// The local backend picks a free port at startup (3000, or 3001+ if busy) and
+// writes it to a file in the data dir. The Tauri shell reads that file and
+// exposes it via the `backend_port` command. We cache the resolved port here so
+// every API call points at the real port, not just the default.
+
+let backendPort: number | null = null;
+
+/** The port the local backend is actually listening on (default 3000). */
+export function getBackendPort(): number {
+  return backendPort ?? DEFAULT_API_PORT;
+}
+
+/** Cache the discovered backend port (called once at startup). */
+export function setBackendPort(port: number): void {
+  if (Number.isInteger(port) && port > 0 && port < 65536) backendPort = port;
+}
+
+/**
+ * Ask the Tauri shell which port the local backend bound. Falls back to the
+ * default port in a plain browser (dev mode). Safe to call repeatedly: in a
+ * plain browser it resolves instantly and does nothing.
+ */
+export async function resolveBackendPort(): Promise<number> {
+  try {
+    if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const port = await invoke<number>("backend_port");
+      setBackendPort(port);
+      return getBackendPort();
+    }
+  } catch {
+    // not running inside Tauri — keep the default
+  }
+  setBackendPort(DEFAULT_API_PORT);
+  return DEFAULT_API_PORT;
 }
 
 export const ACCESS_TOKEN_KEY = "ledgerflow:access-token";

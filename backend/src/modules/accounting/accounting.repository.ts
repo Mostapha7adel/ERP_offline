@@ -160,6 +160,12 @@ export class JournalEntryRepository extends PrismaRepository<JournalEntry> {
     const all = await this.findAll();
     return all.filter((j) => j.status === "posted" && j.lines.some((l) => l.accountCode === code));
   }
+
+  /** Posted journal entries whose date falls within [from, to] (ISO strings). */
+  async byDateRange(from: string, to: string): Promise<JournalEntry[]> {
+    const all = await this.findAll();
+    return all.filter((j) => j.status === "posted" && j.date >= from && j.date <= to);
+  }
 }
 
 export const accountRepository = new AccountRepository();

@@ -1,12 +1,26 @@
 import "./bootstrap.js";
-import { existsSync, copyFileSync } from "node:fs";
+import { existsSync, copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildServer } from "./app.js";
 import { env } from "./config/env.js";
 import { seedDatabase } from "./seed/seed.js";
 import { runMigrations } from "./core/database/migrations.js";
 import { connectDb, disconnectDb } from "./core/database/prisma.js";
+import { dataDir } from "./bootstrap.js";
 import { logger } from "./core/logger/logger.js";
+import { setBoundPort } from "./core/runtime/bound-port.js";
 import { networkService } from "./modules/network/network.service.js";
+
+/** Persist the actual bound port so the Tauri shell can discover it. */
+function persistBoundPort(port: number): void {
+  setBoundPort(port);
+  try {
+    mkdirSync(dataDir(), { recursive: true });
+    writeFileSync(join(dataDir(), "backend-port"), String(port), "utf8");
+  } catch (err) {
+    logger.warn({ err }, "Could not persist backend port file");
+  }
+}
 
 /** Resolve the local SQLite file path from DATABASE_URL (file:... or file:./...). */
 function databaseFilePath(): string | null {
@@ -88,7 +102,34 @@ async function main(): Promise<void> {
     // on the LAN, so we bind every interface. Standalone/client keep the
     // configured host (loopback by default).
     const listenHost = env.LAN_MODE === "host" ? "0.0.0.0" : env.HOST;
-    await app.listen({ port: env.PORT, host: listenHost });
+
+    // Start at the configured port and walk upward until we find a free one.
+    // This keeps the app usable when another program already holds port 3000.
+    const MAX_PORT_ATTEMPTS = 20;
+    let boundPort: number | undefined;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt++) {
+      const port = env.PORT + attempt;
+      try {
+        await app.listen({ port, host: listenHost });
+        boundPort = port;
+        break;
+      } catch (err) {
+        const code = (err as { code?: string }).code;
+        if (code === "EADDRINUSE") {
+          logger.warn({ port }, `Port ${port} is busy, trying the next one`);
+          lastErr = err;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (boundPort === undefined) {
+      throw lastErr ?? new Error("No free port found in the fallback range");
+    }
+
+    persistBoundPort(boundPort);
+    logger.info({ port: boundPort, host: listenHost }, `Backend listening on port ${boundPort}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

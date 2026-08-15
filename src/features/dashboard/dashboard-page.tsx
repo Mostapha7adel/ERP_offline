@@ -16,6 +16,9 @@ import {
   buildWeeklySales,
   buildOutstanding,
   latestMonthTotals,
+  monthOverMonth,
+  weeklySalesTrend,
+  profitMargin,
 } from "@/lib/analytics";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { StatCard } from "@/shared/components/layout/stat-card";
@@ -53,9 +56,9 @@ export function DashboardPage() {
 
   const revenueSeries = buildRevenueSeries(invoices);
   const { revenue, expenses, profit } = latestMonthTotals(invoices);
-  const revenueTrend = 0;
-  const expenseTrend = 0;
-  const profitTrend = 0;
+  const { revenueTrend, expenseTrend, profitTrend } = monthOverMonth(invoices);
+  const salesTrend = weeklySalesTrend(invoices);
+  const margin = profitMargin(invoices);
   const cashFlowSeries = buildCashFlowSeries(transactions);
   const expenseCategories = buildExpenseCategories(transactions);
   const topProducts = buildTopProducts(invoices, products);
@@ -121,7 +124,7 @@ export function DashboardPage() {
           icon={CircleDollarSign}
           iconClassName="bg-primary/10 text-primary"
           trend={profitTrend}
-          footer={t("margin 46%", "هامش 46٪")}
+          footer={t("margin ${percent}%", "هامش ${percent}٪").replace("${percent}", String(margin))}
         />
         <StatCard
           index={3}
@@ -293,7 +296,7 @@ export function DashboardPage() {
                     {formatCurrency(sumSales(weeklySales))}
                   </p>
                 </div>
-                <TrendIndicator value={12.5} className="text-sm" />
+                <TrendIndicator value={salesTrend} className="text-sm" />
               </div>
               <div className="mt-3">
                 <MiniArea data={weeklySales.map((d) => ({ x: d.label, y: d.value }))} height={64} color="hsl(199 89% 48%)" />
