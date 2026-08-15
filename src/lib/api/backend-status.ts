@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getApiBaseUrl } from "@/lib/api/config";
 
-const HEALTH_TIMEOUT_MS = 30000;
+const HEALTH_TIMEOUT_MS = 90000;
 const RETRY_INTERVAL_MS = 400;
 
 export type BackendStatus = "checking" | "ready" | "error";

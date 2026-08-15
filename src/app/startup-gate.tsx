@@ -1,12 +1,73 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useBackendStatus, type BackendStatus } from "@/lib/api/backend-status";
 import { hydrateAll } from "@/lib/api/hydration";
 import { getDeviceConfig, clearDeviceConfig } from "@/lib/api/config";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/shared/components/ui/button";
-import { AlertTriangle, LoaderCircle, Network, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ChevronDown, Clipboard, LoaderCircle, Network, ShieldCheck } from "lucide-react";
 import { APP_NAME } from "@/config/app";
 import { AppLogo } from "@/shared/components/layout/app-logo";
+
+async function readBackendLog(): Promise<string> {
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return await invoke<string>("backend_log_tail");
+  } catch {
+    return "(diagnostics unavailable outside the desktop app)";
+  }
+}
+
+function BackendLogPanel() {
+  const [log, setLog] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let disposed = false;
+    void readBackendLog().then((text) => {
+      if (!disposed) setLog(text);
+    });
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  async function copyLog() {
+    if (log == null) return;
+    try {
+      await navigator.clipboard.writeText(log);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard unavailable
+    }
+  }
+
+  return (
+    <div className="w-full space-y-2 text-left">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="w-full justify-between text-xs text-muted-foreground"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>Show diagnostic log</span>
+        <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </Button>
+      {open ? (
+        <div className="space-y-2">
+          <pre className="max-h-40 overflow-auto rounded-lg border bg-muted p-3 text-[10px] leading-relaxed text-muted-foreground">
+            {log ?? "Loading…"}
+          </pre>
+          <Button variant="outline" size="sm" className="w-full text-xs" onClick={copyLog} disabled={log == null}>
+            <Clipboard className="mr-2 size-3.5" />
+            {copied ? "Copied" : "Copy log"}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function BackendScreen({ status }: { status: BackendStatus }) {
   if (status === "ready") return null;
@@ -53,12 +114,15 @@ function BackendScreen({ status }: { status: BackendStatus }) {
           </div>
           <h1 className="text-lg font-semibold">Backend failed to start</h1>
           <p className="text-sm text-muted-foreground">
-            The local service did not become ready. Check that the bundled backend
-            is present and try again.
+            The local service did not become ready within the time limit. This is
+            usually a one-time delay while the database is created, or another
+            program using port 3000. Check the diagnostic log below, or try
+            again.
           </p>
           <Button className="w-full" onClick={() => window.location.reload()}>
             Retry
           </Button>
+          <BackendLogPanel />
         </div>
       </div>
     );

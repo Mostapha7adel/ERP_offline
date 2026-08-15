@@ -1,6 +1,6 @@
 [package]
 name = "ledgerflow"
-version = "0.1.0"
+version = "1.0.2"
 description = "LedgerFlow — Offline Accounting Desktop System"
 authors = ["LedgerFlow"]
 edition = "2021"

@@ -2,7 +2,7 @@ import type { CompanyProfile, AppPreferences } from "@/types/domain";
 
 export const APP_NAME = "LedgerFlow";
 export const APP_TAGLINE = "Offline accounting, without compromise";
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.0.2";
 
 export const DEFAULT_COMPANY: CompanyProfile = {
   name: "LedgerFlow",
