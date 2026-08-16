@@ -39,8 +39,8 @@ export function LoginPage() {
     defaultValues: { email: "", password: "" },
   });
 
-  const forgot = useForm<{ email: string; currentPassword: string; newPassword: string; confirmPassword: string }>({
-    defaultValues: { email: "", currentPassword: "", newPassword: "", confirmPassword: "" },
+  const forgot = useForm<{ email: string; newPassword: string; confirmPassword: string }>({
+    defaultValues: { email: "", newPassword: "", confirmPassword: "" },
   });
   const [forgotLoading, setForgotLoading] = useState(false);
 
@@ -64,11 +64,7 @@ export function LoginPage() {
     void signIn(values.email, values.password);
   };
 
-  const onForgot = async (values: { email: string; currentPassword: string; newPassword: string; confirmPassword: string }) => {
-    if (values.currentPassword.length < 1) {
-      toast.error(t("Current password is required", "كلمة المرور الحالية مطلوبة"));
-      return;
-    }
+  const onForgot = async (values: { email: string; newPassword: string; confirmPassword: string }) => {
     if (values.newPassword.length < 8) {
       toast.error(t("New password must be at least 8 characters", "يجب ألا تقل كلمة المرور الجديدة عن 8 أحرف"));
       return;
@@ -79,7 +75,7 @@ export function LoginPage() {
     }
     setForgotLoading(true);
     try {
-      await authApi().forgotPassword(values.email, values.currentPassword, values.newPassword);
+      await authApi().forgotPassword(values.email, values.newPassword);
       toast.success(t("Password reset. You can now sign in.", "تمت إعادة تعيين كلمة المرور. يمكنك الآن تسجيل الدخول."));
       setMode("login");
       forgot.reset();
@@ -147,7 +143,7 @@ export function LoginPage() {
               <p className="text-sm text-muted-foreground">
                 {mode === "login"
                   ? t("Welcome back. Enter your credentials.", "مرحباً بعودتك. أدخل بيانات الدخول الخاصة بك.")
-                  : t("Enter your email, current password and a new password to reset it.", "أدخل بريدك الإلكتروني وكلمة المرور الحالية وكلمة مرور جديدة لإعادة تعيينها.")}
+                  : t("Enter your email and a new password to reset it.", "أدخل بريدك الإلكتروني وكلمة مرور جديدة لإعادة تعيينها.")}
               </p>
             </div>
 
@@ -233,20 +229,6 @@ export function LoginPage() {
                       placeholder="you@company.com"
                       className="ps-9"
                       {...forgot.register("email")}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="forgot-current">{t("Current password", "كلمة المرور الحالية")}</Label>
-                  <div className="relative">
-                    <Lock className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="forgot-current"
-                      type="password"
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      className="ps-9"
-                      {...forgot.register("currentPassword")}
                     />
                   </div>
                 </div>

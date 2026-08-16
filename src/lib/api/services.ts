@@ -90,12 +90,10 @@ export function authApi() {
       return api.post<{ success: boolean }>("/auth/logout", { refreshToken });
     },
     changePassword(
-      currentPassword: string,
       newPassword: string,
       email?: string,
     ): Promise<{ success: boolean; email: string; accessToken: string }> {
       return api.post<{ success: boolean; email: string; accessToken: string }>("/auth/change-password", {
-        currentPassword,
         newPassword,
         email,
       });
@@ -103,8 +101,8 @@ export function authApi() {
     completeSetup(): Promise<{ success: boolean; accessToken: string }> {
       return api.post<{ success: boolean; accessToken: string }>("/auth/complete-setup", {});
     },
-    forgotPassword(email: string, currentPassword: string, newPassword: string): Promise<{ success: boolean }> {
-      return api.post<{ success: boolean }>("/auth/forgot-password", { email, currentPassword, newPassword });
+    forgotPassword(email: string, newPassword: string): Promise<{ success: boolean }> {
+      return api.post<{ success: boolean }>("/auth/forgot-password", { email, newPassword });
     },
   };
 }

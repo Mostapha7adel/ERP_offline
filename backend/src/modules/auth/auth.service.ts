@@ -166,8 +166,6 @@ export class AuthService {
   ): Promise<{ success: boolean; email: string; accessToken: string }> {
     const user = await userRepository.findById(userId);
     if (!user) throw AppError.unauthorized("User no longer exists");
-    const valid = await verifyPassword(input.currentPassword, user.passwordHash);
-    if (!valid) throw AppError.badRequest("Current password is incorrect");
 
     let email = user.email;
     if (input.email && input.email.trim().toLowerCase() !== user.email.toLowerCase()) {
@@ -205,9 +203,9 @@ export class AuthService {
 
   /**
    * Reset the super admin password. There is no email server in this offline
-   * app, so the caller must prove knowledge of the account's current password
-   * before the new password is applied. Only the super admin account is
-   * allowed to use this flow; any other account that tries is rejected.
+   * app, so only the super admin account may use this flow and no current
+   * password is required (the admin may have forgotten it). Any other account
+   * that tries is rejected.
    */
   async forgotPassword(input: ForgotPasswordInput): Promise<{ success: boolean }> {
     const user = await userRepository.findByEmail(input.email);
@@ -218,10 +216,6 @@ export class AuthService {
     const isSuperAdmin = role?.permissions.includes(SUPER_ADMIN_WILDCARD) ?? false;
     if (!isSuperAdmin) {
       throw AppError.forbidden("Only the super admin can reset a password. Contact your administrator.");
-    }
-    const valid = await verifyPassword(input.currentPassword, user.passwordHash);
-    if (!valid) {
-      throw AppError.badRequest("Current password is incorrect");
     }
     const passwordHash = await hashPassword(input.newPassword);
     await userRepository.update({

@@ -15,7 +15,7 @@ import {
 } from "./auth.schema.js";
 import { ok } from "../../core/response/response.js";
 import { getAuditContext } from "../../core/http/context.js";
-import { getPrincipal } from "../../core/security/rbac.js";
+import { getPrincipal, requireSuperAdmin } from "../../core/security/rbac.js";
 
 export async function registerAuthController(app: FastifyInstance): Promise<void> {
   const typed = app.withTypeProvider<ZodTypeProvider>();
@@ -80,8 +80,9 @@ export async function registerAuthController(app: FastifyInstance): Promise<void
   });
 
   typed.post("/auth/change-password", {
+    preHandler: requireSuperAdmin(),
     schema: {
-      description: "Change the current user's password and optionally their email",
+      description: "Change the super admin's password and optionally their email",
       security: [{ bearerAuth: [] }],
       body: changePasswordSchema,
       response: { 200: changePasswordResponseSchema },

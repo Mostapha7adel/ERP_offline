@@ -97,7 +97,6 @@ describe("E2E API smoke", () => {
       url: "/api/v1/auth/change-password",
       headers: { authorization: `Bearer ${fresh.accessToken}` },
       payload: {
-        currentPassword: "Admin@123!",
         newPassword: "Admin@123!",
         email: "admin@ledgerflow.local",
       },

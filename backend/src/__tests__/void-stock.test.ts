@@ -33,7 +33,7 @@ beforeAll(async () => {
     method: "POST",
     url: "/api/v1/auth/change-password",
     headers: { authorization: `Bearer ${token}` },
-    payload: { currentPassword: "Admin@123!", newPassword: "Admin@123!", email: "admin@ledgerflow.local" },
+    payload: { newPassword: "Admin@123!", email: "admin@ledgerflow.local" },
   });
 });
 

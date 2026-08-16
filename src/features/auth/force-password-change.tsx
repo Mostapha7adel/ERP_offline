@@ -14,14 +14,14 @@ import { useT } from "@/shared/lib/i18n";
 
 interface ForcePasswordFormValues {
   email: string;
-  currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
 
 /**
- * Optional first-run credentials screen. The signed-in user may update their
- * email/password, or continue to the dashboard leaving them unchanged.
+ * Optional first-run credentials screen. The signed-in super admin may update
+ * their email/password directly (no current password is required), or continue
+ * to the dashboard leaving them unchanged.
  */
 export function ForcePasswordChange() {
   const navigate = useNavigate();
@@ -39,7 +39,6 @@ export function ForcePasswordChange() {
   } = useForm<ForcePasswordFormValues>({
     defaultValues: {
       email: currentUser?.email ?? "",
-      currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     },
@@ -57,22 +56,16 @@ export function ForcePasswordChange() {
       z.string().email(t("Invalid email address", "بريد إلكتروني غير صالح")).parse(values.email);
 
       if (wantPassword || emailChanged) {
-        if (wantPassword) {
-          if (values.newPassword.length < 8) {
-            throw new Error(t("New password must be at least 8 characters", "يجب ألا تقل كلمة المرور الجديدة عن 8 أحرف"));
-          }
-          if (values.newPassword !== values.confirmPassword) {
-            throw new Error(t("Passwords do not match", "كلمتا المرور غير متطابقتين"));
-          }
+        if (!wantPassword) {
+          throw new Error(t("Enter a new password to make changes", "أدخل كلمة مرور جديدة لإجراء التغييرات"));
         }
-        if (!values.currentPassword) {
-          throw new Error(t("Enter your current password to make changes", "أدخل كلمة مرورك الحالية لإجراء التغييرات"));
+        if (values.newPassword.length < 8) {
+          throw new Error(t("New password must be at least 8 characters", "كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف"));
         }
-        const result = await authApi().changePassword(
-          values.currentPassword,
-          wantPassword ? values.newPassword : values.currentPassword,
-          values.email,
-        );
+        if (values.newPassword !== values.confirmPassword) {
+          throw new Error(t("Passwords do not match", "كلمتا المرور غير متطابقتين"));
+        }
+        const result = await authApi().changePassword(values.newPassword, values.email);
         setAccessToken(result.accessToken);
         updateCurrentUserEmail(result.email);
         toast.success(t("Your email and password were updated.", "تم تحديث بريدك الإلكتروني وكلمة المرور."));
@@ -123,25 +116,8 @@ export function ForcePasswordChange() {
             ) : null}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="currentPassword">{t("Current password (to make changes)", "كلمة المرور الحالية (لإجراء التغييرات)")}</Label>
-            <div className="relative">
-              <Lock className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="currentPassword"
-                type="password"
-                autoComplete="current-password"
-                className="ps-9"
-                {...register("currentPassword")}
-              />
-            </div>
-            {errors.currentPassword ? (
-              <p className="text-xs text-destructive">{errors.currentPassword.message}</p>
-            ) : null}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="newPassword">{t("New password (optional)", "كلمة المرور الجديدة (اختياري)")}</Label>
+<div className="space-y-1.5">
+            <Label htmlFor="newPassword">{t("New password", "كلمة المرور الجديدة")}</Label>
             <div className="relative">
               <Lock className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
