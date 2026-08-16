@@ -51,7 +51,8 @@
         "displayLanguageSelector": true,
         "languages": ["English", "Arabic"],
         "startMenuFolder": "LedgerFlow",
-        "compression": "lzma"
+        "compression": "lzma",
+        "installerHooks": "nsis/installer.nsi"
       }
     }
   }

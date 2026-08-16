@@ -130,12 +130,26 @@ fn log_line(message: &str) {
     }
 }
 
+/// Extract the `version` field from a `/health` body, or "" when absent (an old
+/// backend build predating the version handshake).
+fn health_version(body: &str) -> String {
+    const MARKER: &str = "\"version\":\"";
+    if let Some(start) = body.find(MARKER) {
+        let rest = &body[start + MARKER.len()..];
+        if let Some(end) = rest.find('"') {
+            return rest[..end].to_string();
+        }
+    }
+    String::new()
+}
+
 /// Perform a single HTTP GET against the backend's `/health` endpoint on one
-/// port and return true only when the body reports `{"status":"ok"}`.
-fn probe_health_on(port: u16) -> bool {
+/// port. Returns `Some(version)` when the body reports `{"status":"ok"}` (the
+/// version is "" for an old build without the handshake), else `None`.
+fn probe_health_on(port: u16) -> Option<String> {
     let addr: std::net::SocketAddr = match format!("127.0.0.1:{port}").parse() {
         Ok(a) => a,
-        Err(_) => return false,
+        Err(_) => return None,
     };
     if let Ok(mut stream) = std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(600)) {
         let _ = stream.set_read_timeout(Some(Duration::from_millis(1200)));
@@ -145,38 +159,48 @@ fn probe_health_on(port: u16) -> bool {
             if n > 0 {
                 let text = String::from_utf8_lossy(&buf[..n]);
                 if text.contains("\"status\":\"ok\"") {
-                    return true;
+                    return Some(health_version(&text));
                 }
             }
         }
     }
-    false
+    None
 }
 
 /// Probe the discovered port first, then fall back to the default in case the
 /// port file is stale (e.g. a previous session on 3001, but the live backend
-/// now runs on 3000).
-fn probe_health() -> bool {
+/// now runs on 3000). Returns `Some(version)` when a healthy backend answers.
+fn probe_health() -> Option<String> {
     let primary = resolved_backend_port();
-    if probe_health_on(primary) {
+    if let Some(version) = probe_health_on(primary) {
         remember_backend_port(primary);
-        return true;
+        return Some(version);
     }
-    if primary != DEFAULT_PORT && probe_health_on(DEFAULT_PORT) {
-        remember_backend_port(DEFAULT_PORT);
-        return true;
+    if primary != DEFAULT_PORT {
+        if let Some(version) = probe_health_on(DEFAULT_PORT) {
+            remember_backend_port(DEFAULT_PORT);
+            return Some(version);
+        }
     }
-    false
+    None
 }
 
-/// True when something on 127.0.0.1:3000 answers /health with `{"status":"ok"}`
-/// — i.e. a healthy LedgerFlow backend is already serving this device.
-fn port_has_healthy_backend() -> bool {
+/// True when a healthy backend of *our* version is already serving this device.
+/// A leftover backend from an older install answers /health but with a stale or
+/// missing version — that must NOT be reused, so the caller can replace it.
+fn port_has_healthy_backend(expected_version: &str) -> bool {
     // Probe a few times: a backend that is mid-startup could otherwise be
     // misjudged as dead, which would make us wrongly clear its process.
     for _ in 0..3 {
-        if probe_health() {
-            return true;
+        if let Some(version) = probe_health() {
+            if version == expected_version {
+                return true;
+            }
+            process_log_line(&format!(
+                "healthy backend on :{} reported version \"{version}\" but this build is \"{expected_version}\" — replacing it",
+                resolved_backend_port()
+            ));
+            return false;
         }
         std::thread::sleep(Duration::from_millis(400));
     }
@@ -184,8 +208,9 @@ fn port_has_healthy_backend() -> bool {
 }
 
 /// Wait (up to `timeout_ms`) for the spawned child to answer `/health` with
-/// `{"status":"ok"}`. Returns false immediately if the process exits early.
-fn wait_for_health(child: &mut Child, timeout_ms: u64) -> bool {
+/// `{"status":"ok"}` and our expected version. Returns false immediately if the
+/// process exits early.
+fn wait_for_health(child: &mut Child, timeout_ms: u64, expected_version: &str) -> bool {
     let start = Instant::now();
     loop {
         if let Some(status) = child.try_wait().ok().flatten() {
@@ -195,9 +220,14 @@ fn wait_for_health(child: &mut Child, timeout_ms: u64) -> bool {
             ));
             return false;
         }
-        if probe_health() {
-            process_log_line("backend health check passed");
-            return true;
+        if let Some(version) = probe_health() {
+            if version == expected_version {
+                process_log_line("backend health check passed");
+                return true;
+            }
+            process_log_line(&format!(
+                "health probe answered with version \"{version}\" but we expect \"{expected_version}\" — waiting for our own backend"
+            ));
         }
         if Instant::now().duration_since(start).as_millis() as u64 >= timeout_ms {
             process_log_line(&format!(
@@ -217,11 +247,17 @@ fn wait_for_health(child: &mut Child, timeout_ms: u64) -> bool {
 /// then wait until its `/health` endpoint answers so we never report a ready
 /// backend that is actually still migrating or crashed.
 pub fn spawn_backend(app: AppHandle) {
-    // If a healthy backend is already listening (e.g. a second app window, or a
-    // leftover process from a previous install), reuse it instead of spawning a
-    // second one that would fail to bind the port.
-    if port_has_healthy_backend() {
-        log_line("existing healthy backend on :3000 — reusing it");
+    let version = app.package_info().version.to_string();
+    log_line(&format!("this build is v{version}"));
+
+    // If a healthy backend of the same version is already listening (e.g. a
+    // second app window, or a leftover process from a previous install of the
+    // same build), reuse it instead of spawning a second one that would fail to
+    // bind the port. A leftover backend from an OLDER install answers /health
+    // but with a different/missing version, so it is NOT reused and gets
+    // replaced below.
+    if port_has_healthy_backend(&version) {
+        log_line("existing healthy backend with matching version — reusing it");
         return;
     }
 
@@ -229,12 +265,22 @@ pub fn spawn_backend(app: AppHandle) {
     // earlier install/reinstall may be squatting on the port and answering
     // nothing; clear those before starting a fresh instance. Give the OS a
     // moment to release the socket afterwards.
+    //
+    // NOTE: `taskkill /IM` does NOT accept wildcards (a `*` is treated
+    // literally and exits 128), so we target the known image names explicitly.
     #[cfg(windows)]
-    if let Ok(out) = Command::new("taskkill")
-        .args(["/IM", "ledgerflow-backend*.exe", "/F"])
-        .output()
     {
-        log_line(&format!("cleaned stale backends (exit: {:?})", out.status.code()));
+        for image in ["ledgerflow-backend.exe", "ledgerflow-backend-x64.exe"] {
+            if let Ok(out) = Command::new("taskkill")
+                .args(["/IM", image, "/F"])
+                .output()
+            {
+                log_line(&format!(
+                    "taskkill {image} -> exit {:?}",
+                    out.status.code()
+                ));
+            }
+        }
     }
     std::thread::sleep(std::time::Duration::from_millis(1000));
 
@@ -293,6 +339,10 @@ pub fn spawn_backend(app: AppHandle) {
         // Client devices point their frontend at this device's IP instead.
         cmd.env("LAN_MODE", "host");
 
+        // Tell the backend who spawned it. It echoes this back in /health so
+        // future launches can tell a fresh backend from an old leftover one.
+        cmd.env("LEDGERFLOW_VERSION", &version);
+
         // On Windows the backend is a console executable; without this flag Windows
         // opens a separate console window next to the app window. Tell Windows to
         // create the process without any window so the server runs silently in the
@@ -314,7 +364,7 @@ pub fn spawn_backend(app: AppHandle) {
         log_line(&format!("spawned (attempt {attempt})"));
         process_log_line(&format!("spawned (attempt {attempt})"));
 
-        if wait_for_health(&mut child, 20_000) {
+        if wait_for_health(&mut child, 20_000, &version) {
             spawned_child = Some(child);
             break;
         }

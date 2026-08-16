@@ -33,8 +33,14 @@ export async function buildServer(): Promise<FastifyInstance> {
   app.setErrorHandler(errorHandler);
 
   // Health check (public). Includes the actual bound port so the Tauri shell
-  // and any LAN client can discover where this backend is listening.
-  app.get("/health", { config: { auth: false } }, async () => ({ status: "ok", port: getBoundPort() }));
+  // and any LAN client can discover where this backend is listening. The
+  // version is set by the shell when spawning (LEDGERFLOW_VERSION) so the shell
+  // can tell a freshly-started backend apart from an old leftover one that may
+  // still be holding the port after an upgrade install.
+  app.get("/health", { config: { auth: false } }, async () => {
+    const version = process.env.LEDGERFLOW_VERSION;
+    return version ? { status: "ok", port: getBoundPort(), version } : { status: "ok", port: getBoundPort() };
+  });
 
   await registerPlugins(app);
   await authPlugin(app);
