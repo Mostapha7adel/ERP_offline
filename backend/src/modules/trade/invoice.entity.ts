@@ -30,11 +30,13 @@ export interface Invoice {
   tax: number;
   total: number;
   paidAmount: number;
+  currency: string;
   received: boolean;
   status: InvoiceStatus;
   paymentMethod?: string;
   notes?: string;
   quoteId?: string;
+  purchaseOrderId?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

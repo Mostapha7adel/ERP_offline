@@ -35,4 +35,10 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   showDecimals: true,
   notificationsEnabled: true,
   autoSave: true,
+  costingMethod: "average",
+  enforceCreditLimit: false,
+  autoBackupEnabled: false,
+  autoBackupFrequencyHours: 24,
+  autoBackupRetention: 7,
+  autoBackupFolder: "",
 };

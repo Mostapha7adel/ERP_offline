@@ -25,6 +25,7 @@ export interface Party {
   taxId: string;
   currency: string;
   paymentTerms: string;
+  creditLimit?: number;
   address: Address;
   balance: number;
   status: PartyStatus;
@@ -279,10 +280,10 @@ export interface PartyStatementRow {
 }
 
 export interface PartyStatement {
-  party: { id: ID; name: string; type: PartyType };
+  party: { id: ID; name: string; type: PartyType; currency?: string };
   period: { from: string; to: string };
-  openingBalance: number;
-  closingBalance: number;
+  opening: number;
+  closing: number;
   rows: PartyStatementRow[];
 }
 
@@ -389,6 +390,12 @@ export interface AppPreferences {
   showDecimals: boolean;
   notificationsEnabled: boolean;
   autoSave: boolean;
+  costingMethod: "average" | "fifo";
+  enforceCreditLimit: boolean;
+  autoBackupEnabled: boolean;
+  autoBackupFrequencyHours: number;
+  autoBackupRetention: number;
+  autoBackupFolder: string;
 }
 
 export interface BackupMeta {
@@ -398,4 +405,174 @@ export interface BackupMeta {
   size: number;
   type: "manual" | "auto";
   version: string;
+}
+
+export interface CurrencyRate {
+  id: ID;
+  code: string;
+  name: string;
+  symbol: string;
+  rate: number;
+  isBase?: boolean;
+  createdAt?: ISOString;
+  updatedAt?: ISOString;
+}
+
+export type PurchaseOrderStatus =
+  | "draft"
+  | "pending"
+  | "approved"
+  | "partially_received"
+  | "received"
+  | "cancelled";
+
+export interface PurchaseOrderLine {
+  id: ID;
+  purchaseOrderId: ID;
+  productId: ID;
+  productName: string;
+  description?: string;
+  quantity: number;
+  receivedQty: number;
+  unitPrice: number;
+  discount?: number;
+  taxRate?: number;
+  lineTotal: number;
+}
+
+export interface PurchaseOrder {
+  id: ID;
+  number: string;
+  supplierId: ID;
+  supplierName?: string;
+  warehouseId?: ID;
+  warehouseName?: string;
+  orderDate: string;
+  expectedDate?: string;
+  status: PurchaseOrderStatus;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  currency: string;
+  notes?: string;
+  approvedBy?: ID;
+  approvedAt?: string;
+  createdBy?: ID;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+  lines: PurchaseOrderLine[];
+  orderedQty?: number;
+  receivedQty?: number;
+  invoiceId?: ID;
+}
+
+export type DepreciationMethod = "straight-line" | "declining";
+export type AssetStatus = "active" | "disposed" | "inactive";
+
+export interface AssetDepreciationRun {
+  id: ID;
+  assetId: ID;
+  period: string;
+  amount: number;
+  bookValueAfter: number;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+}
+
+export interface Asset {
+  id: ID;
+  code: string;
+  name: string;
+  category?: string;
+  purchaseDate: string;
+  cost: number;
+  salvageValue: number;
+  usefulLifeMonths: number;
+  depreciationMethod: DepreciationMethod;
+  currentValue: number;
+  accumulatedDepreciation?: number;
+  bookValue?: number;
+  status: AssetStatus;
+  accountId?: ID;
+  accountName?: string;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+  runs?: AssetDepreciationRun[];
+}
+
+export interface AdvanceAllocation {
+  id: ID;
+  advanceId: ID;
+  invoiceId: ID;
+  invoiceNumber?: string;
+  amount: number;
+  allocatedAt: ISOString;
+}
+
+export interface CustomerAdvance {
+  id: ID;
+  partyId: ID;
+  partyName?: string;
+  amount: number;
+  balance: number;
+  currency: string;
+  date: string;
+  method?: string;
+  reference?: string;
+  notes?: string;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+  allocations?: AdvanceAllocation[];
+}
+
+export type AlertSeverity = "danger" | "warning" | "info";
+export type AlertKind =
+  | "low-stock"
+  | "overdue-invoice"
+  | "expiring-batch"
+  | "recurring-due";
+
+export interface AlertItem {
+  id: ID;
+  kind: AlertKind;
+  severity: AlertSeverity;
+  title: string;
+  message: string;
+  resource: string;
+  resourceId?: ID;
+  date?: string;
+}
+
+export interface AlertsSummary {
+  lowStock: AlertItem[];
+  overdueInvoices: AlertItem[];
+  expiringBatches: AlertItem[];
+  recurringDue: AlertItem[];
+  counts: Record<string, number>;
+  total: number;
+}
+
+export interface ImportRowResult {
+  row: number;
+  error?: string;
+}
+
+export interface ImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: ImportRowResult[];
+}
+
+export interface SharePayload {
+  type: "invoice" | "statement";
+  id: ID;
+}
+
+export interface ShareLink {
+  subject: string;
+  body: string;
+  mailto: string;
+  whatsapp: string;
 }

@@ -19,6 +19,13 @@ import { registerBackupController } from "./backup/backup.controller.js";
 import { registerAuditController } from "./audit/audit.controller.js";
 import { registerNotificationsController } from "./notifications/notification.controller.js";
 import { registerNetworkController } from "./network/network.controller.js";
+import { registerCurrenciesController } from "./currencies/currency.controller.js";
+import { registerPurchaseOrdersController } from "./purchase-orders/purchase-order.controller.js";
+import { registerAssetsController } from "./assets/asset.controller.js";
+import { registerAdvancesController } from "./advances/advance.controller.js";
+import { registerAlertsController } from "./alerts/alert.controller.js";
+import { registerImportController } from "./import/import.controller.js";
+import { registerShareController } from "./share/share.controller.js";
 
 /**
  * Feature modules are registered under the `/api/v1` prefix.
@@ -52,6 +59,13 @@ export async function registerModules(app: FastifyInstance): Promise<void> {
       await registerAuditController(scoped);
       await registerNotificationsController(scoped);
       await registerNetworkController(scoped);
+      registerCurrenciesController(scoped);
+      registerPurchaseOrdersController(scoped);
+      registerAssetsController(scoped);
+      registerAdvancesController(scoped);
+      registerAlertsController(scoped);
+      registerImportController(scoped);
+      registerShareController(scoped);
     },
     { prefix: "/api/v1" },
   );

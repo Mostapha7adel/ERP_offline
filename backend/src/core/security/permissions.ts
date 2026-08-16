@@ -92,6 +92,39 @@ export const PERMISSIONS = {
   // Network (LAN workspace between devices)
   "network:read": "network:read",
   "network:manage": "network:manage",
+
+  // Purchase orders
+  "purchase-orders:read": "purchase-orders:read",
+  "purchase-orders:create": "purchase-orders:create",
+  "purchase-orders:update": "purchase-orders:update",
+  "purchase-orders:approve": "purchase-orders:approve",
+  "purchase-orders:receive": "purchase-orders:receive",
+  "purchase-orders:delete": "purchase-orders:delete",
+
+  // Fixed assets
+  "assets:read": "assets:read",
+  "assets:create": "assets:create",
+  "assets:update": "assets:update",
+  "assets:delete": "assets:delete",
+  "assets:depreciate": "assets:depreciate",
+
+  // Currencies
+  "currencies:read": "currencies:read",
+  "currencies:create": "currencies:create",
+  "currencies:update": "currencies:update",
+  "currencies:delete": "currencies:delete",
+
+  // Customer advances
+  "advances:read": "advances:read",
+  "advances:create": "advances:create",
+  "advances:update": "advances:update",
+  "advances:allocate": "advances:allocate",
+  "advances:delete": "advances:delete",
+
+  // Alerts & imports
+  "alerts:read": "alerts:read",
+  "import:create": "import:create",
+  "share:read": "share:read",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

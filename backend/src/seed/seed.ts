@@ -5,6 +5,7 @@ import { resetCompanyCache } from "../core/database/company.js";
 import { roleRepository } from "../modules/roles/role.repository.js";
 import { userRepository } from "../modules/users/user.repository.js";
 import { settingsRepository } from "../modules/settings/settings.repository.js";
+import { logger } from "../core/logger/logger.js";
 
 export const ADMIN_EMAIL = "admin@ledgerflow.local";
 export const ADMIN_PASSWORD = "Admin@123!";
@@ -35,6 +36,12 @@ const roleSeeds = [
       "reports:read",
       "settings:read", "settings:update",
       "auth:me", "auth:changePassword",
+      "purchase-orders:read", "purchase-orders:create", "purchase-orders:update",
+      "purchase-orders:approve", "purchase-orders:receive",
+      "assets:read", "assets:create", "assets:update", "assets:depreciate",
+      "currencies:read", "currencies:create", "currencies:update",
+      "advances:read", "advances:create", "advances:update", "advances:allocate",
+      "alerts:read", "import:create", "share:read",
     ],
     isSystem: true,
   },
@@ -46,6 +53,8 @@ const roleSeeds = [
       "products:read",
       "inventory:read",
       "sales:read", "sales:create", "sales:update", "sales:void",
+      "advances:read", "advances:create", "advances:update", "advances:allocate",
+      "alerts:read", "share:read",
       "reports:read",
       "auth:me", "auth:changePassword",
     ],
@@ -58,6 +67,8 @@ const roleSeeds = [
       "customers:read", "suppliers:read", "products:read", "warehouses:read",
       "inventory:read", "sales:read", "purchases:read", "treasury:read",
       "accounting:read", "reports:read", "settings:read",
+      "purchase-orders:read", "assets:read", "currencies:read",
+      "advances:read", "alerts:read", "share:read",
       "auth:me", "auth:changePassword",
     ],
     isSystem: true,
@@ -69,7 +80,10 @@ const roleSeeds = [
  * Safe to call on every boot (idempotent via admin email check).
  */
 export async function seedDatabase(): Promise<void> {
-  if (await userRepository.findByEmail(ADMIN_EMAIL)) return;
+  if (await userRepository.findByEmail(ADMIN_EMAIL)) {
+    await syncSystemRolePermissions();
+    return;
+  }
 
   // Default company (tenant root) — repositories scope writes to this.
   await prisma.company.upsert({
@@ -123,9 +137,38 @@ export async function seedDatabase(): Promise<void> {
   await settingsRepository.set("prefs.dateFormat", "yyyy-MM-dd");
   await settingsRepository.set("prefs.notifyOnLowStock", true);
   await settingsRepository.set("prefs.notifyOnInvoiceCreated", true);
+  await settingsRepository.set("prefs.costingMethod", "average");
+  await settingsRepository.set("prefs.enforceCreditLimit", false);
+  await settingsRepository.set("prefs.autoBackupEnabled", false);
+  await settingsRepository.set("prefs.autoBackupFrequencyHours", 24);
+  await settingsRepository.set("prefs.autoBackupRetention", 7);
+  await settingsRepository.set("prefs.autoBackupFolder", "");
 
   // eslint-disable-next-line no-console
   console.log("[seed] Database initialized (empty workspace)");
+  await syncSystemRolePermissions();
+}
+
+/**
+ * Back-fills any permissions that were added after a system role was created
+ * so existing installs gain access to new features without re-seeding.
+ */
+async function syncSystemRolePermissions(): Promise<void> {
+  try {
+    for (const seed of roleSeeds) {
+      const role = await roleRepository.findByName(seed.name);
+      if (!role || role.permissions.includes(SUPER_ADMIN_WILDCARD)) continue;
+      const missing = seed.permissions.filter((p) => !role.permissions.includes(p));
+      if (missing.length === 0) continue;
+      await roleRepository.update({
+        id: role.id,
+        data: { permissions: [...role.permissions, ...missing] },
+      });
+      logger.info({ role: seed.name, added: missing.length }, "Synced new permissions onto system role");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Could not sync system role permissions");
+  }
 }
 
 export { ALL_PERMISSIONS };

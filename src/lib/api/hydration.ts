@@ -12,6 +12,10 @@ import { useUsersStore, useRolesStore, useAuditLogsStore } from "@/stores/system
 import { useNotificationsStore } from "@/stores/notifications-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useCurrenciesStore } from "@/stores/currencies-store";
+import { usePurchaseOrdersStore } from "@/stores/purchase-orders-store";
+import { useAssetsStore } from "@/stores/assets-store";
+import { useAdvancesStore } from "@/stores/advances-store";
 import { mapStockItem } from "@/lib/api/mappers";
 import {
   partiesApi,
@@ -30,6 +34,11 @@ import {
   auditApi,
   settingsApi,
   notificationsApi,
+  currenciesApi,
+  purchaseOrdersApi,
+  assetsApi,
+  advancesApi,
+  alertsApi,
 } from "@/lib/api";
 
 /**
@@ -53,6 +62,11 @@ export async function hydrateAll(): Promise<void> {
     hydrateAudit(),
     hydrateSettings(),
     hydrateNotifications(),
+    hydrateCurrencies(),
+    hydratePurchaseOrders(),
+    hydrateAssets(),
+    hydrateAdvances(),
+    hydrateAlerts(),
   ]);
 }
 
@@ -239,6 +253,52 @@ export async function hydrateSettings(): Promise<void> {
       currency: company.currency ?? current.currency,
       dateFormat: preferences.dateFormat,
     });
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateCurrencies(): Promise<void> {
+  try {
+    const currencies = await currenciesApi().list();
+    useCurrenciesStore.getState().hydrate(currencies);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydratePurchaseOrders(): Promise<void> {
+  try {
+    const orders = await purchaseOrdersApi().list();
+    usePurchaseOrdersStore.getState().hydrate(orders);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateAssets(): Promise<void> {
+  try {
+    const assets = await assetsApi().list();
+    useAssetsStore.getState().hydrate(assets);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateAdvances(): Promise<void> {
+  try {
+    const advances = await advancesApi().list();
+    useAdvancesStore.getState().hydrate(advances);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateAlerts(): Promise<void> {
+  try {
+    const summary = await alertsApi().summary();
+    // Alerts are fetched on demand by the alerts page; nothing to persist here.
+    void summary;
   } catch {
     // keep existing data
   }

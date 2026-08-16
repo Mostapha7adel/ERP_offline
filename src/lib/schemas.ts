@@ -8,6 +8,7 @@ export const partySchema = z.object({
   taxId: z.string().optional(),
   paymentTerms: z.string().optional(),
   currency: z.string().default("USD"),
+  creditLimit: z.string().optional(),
   status: z.enum(["active", "inactive", "blocked"]).default("active"),
   street: z.string().optional(),
   city: z.string().optional(),

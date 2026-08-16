@@ -1,9 +1,14 @@
-import { FileText, Banknote, X, Download, Printer, PackageCheck } from "lucide-react";
+import { FileText, Banknote, X, Download, Printer, PackageCheck, Share2, Mail, MessageCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/shared/components/ui/sheet";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Separator } from "@/shared/components/ui/separator";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
+import { toast } from "@/shared/lib/toast";
+import { shareApi } from "@/lib/api";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/shared/components/ui/dialog";
@@ -32,6 +37,7 @@ export function InvoiceDetailDrawer({ invoice, kind, party, onOpenChange, onMark
   const [receiving, setReceiving] = useState(false);
   const [voiding, setVoiding] = useState(false);
   const [confirmVoid, setConfirmVoid] = useState(false);
+  const [sharing, setSharing] = useState(false);
   if (!invoice) return null;
   const dueLabel = invoice.status === "paid" ? t("Settled", "تمت التسوية") : t("Due", "مستحق");
   const statusVariant = invoice.status === "paid" ? "success" : invoice.status === "overdue" ? "destructive" : invoice.status === "draft" ? "muted" : "warning";
@@ -64,6 +70,18 @@ export function InvoiceDetailDrawer({ invoice, kind, party, onOpenChange, onMark
       setConfirmVoid(false);
     } finally {
       setVoiding(false);
+    }
+  };
+
+  const openShare = async (via: "email" | "whatsapp") => {
+    setSharing(true);
+    try {
+      const link = await shareApi().build({ type: "invoice", id: invoice.id });
+      window.open(via === "email" ? link.mailto : link.whatsapp, "_blank");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("Failed to build share link", "فشل إنشاء رابط المشاركة"));
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -126,6 +144,23 @@ export function InvoiceDetailDrawer({ invoice, kind, party, onOpenChange, onMark
               ) : null}
             </div>
           ) : null}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full" disabled={sharing}>
+                {sharing ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4" />}
+                {t("Share", "مشاركة")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem disabled={sharing} onClick={() => void openShare("email")}>
+                <Mail className="size-4" /> {t("Email", "البريد الإلكتروني")}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={sharing} onClick={() => void openShare("whatsapp")}>
+                <MessageCircle className="size-4" /> WhatsApp
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MiniStat label={t("Total", "الإجمالي")} value={formatCurrency(invoice.total, invoice.currency)} accent />

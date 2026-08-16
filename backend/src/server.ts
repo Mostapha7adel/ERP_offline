@@ -10,6 +10,8 @@ import { dataDir } from "./bootstrap.js";
 import { logger } from "./core/logger/logger.js";
 import { setBoundPort } from "./core/runtime/bound-port.js";
 import { networkService } from "./modules/network/network.service.js";
+import { scheduleEvery } from "./core/scheduler/scheduler.js";
+import { autoBackupService } from "./core/backup/auto-backup.service.js";
 
 /** Persist the actual bound port so the Tauri shell can discover it. */
 function persistBoundPort(port: number): void {
@@ -130,6 +132,14 @@ async function main(): Promise<void> {
 
     persistBoundPort(boundPort);
     logger.info({ port: boundPort, host: listenHost }, `Backend listening on port ${boundPort}`);
+
+    // Scheduled background work (auto-backup + alert push). Unref'd so the
+    // process still exits cleanly on shutdown.
+    scheduleEvery(60 * 1000, "auto-backup", () => autoBackupService.tick());
+    scheduleEvery(15 * 60 * 1000, "alert-push", async () => {
+      const { alertService } = await import("./modules/alerts/alert.service.js");
+      await alertService.notify();
+    });
   } catch (err) {
     app.log.error(err);
     process.exit(1);

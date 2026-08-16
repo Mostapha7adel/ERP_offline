@@ -16,6 +16,10 @@ import {
   mapRole,
   mapAuditLog,
   mapNotification,
+  mapCurrencyRate,
+  mapPurchaseOrder,
+  mapAsset,
+  mapCustomerAdvance,
 } from "./mappers";
 import type {
   Party,
@@ -36,6 +40,13 @@ import type {
   AppRole,
   AppNotification,
   AuditLog,
+  CurrencyRate,
+  PurchaseOrder,
+  Asset,
+  CustomerAdvance,
+  AlertsSummary,
+  ImportResult,
+  ShareLink,
 } from "@/types/domain";
 
 // ---- Auth ----
@@ -914,6 +925,12 @@ export interface PreferencesSettings {
   dateFormat: string;
   notifyOnLowStock: boolean;
   notifyOnInvoiceCreated: boolean;
+  costingMethod?: "average" | "fifo";
+  enforceCreditLimit?: boolean;
+  autoBackupEnabled?: boolean;
+  autoBackupFrequencyHours?: number;
+  autoBackupRetention?: number;
+  autoBackupFolder?: string;
 }
 
 export interface SettingsBundle {
@@ -1237,6 +1254,311 @@ export function recurringApi() {
     },
     remove(kind: "sale" | "purchase", id: string): Promise<{ success: boolean }> {
       return api.delete<{ success: boolean }>(`${base(kind)}/${id}`);
+    },
+  };
+}
+
+// ---- Currencies ----
+
+export interface CurrencyInput {
+  code: string;
+  name?: string;
+  symbol?: string;
+  rate: number;
+  isBase?: boolean;
+}
+
+export function currenciesApi() {
+  return {
+    async list(): Promise<CurrencyRate[]> {
+      const res = await api.get<Parameters<typeof mapCurrencyRate>[0][]>(
+        "/currencies",
+      );
+      return (res ?? []).map(mapCurrencyRate);
+    },
+    create(input: CurrencyInput): Promise<CurrencyRate> {
+      return api
+        .post<Parameters<typeof mapCurrencyRate>[0]>("/currencies", input)
+        .then(mapCurrencyRate);
+    },
+    update(id: string, input: Partial<CurrencyInput>): Promise<CurrencyRate> {
+      return api
+        .patch<Parameters<typeof mapCurrencyRate>[0]>(
+          `/currencies/${id}`,
+          input,
+        )
+        .then(mapCurrencyRate);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/currencies/${id}`);
+    },
+  };
+}
+
+// ---- Purchase orders ----
+
+export interface PurchaseOrderLineInput {
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  discount?: number;
+  taxRate?: number;
+}
+
+export interface PurchaseOrderInput {
+  supplierId?: string;
+  warehouseId?: string;
+  orderDate: string;
+  expectedDate?: string;
+  lines: PurchaseOrderLineInput[];
+  discount?: number;
+  currency?: string;
+  notes?: string;
+}
+
+export function purchaseOrdersApi() {
+  return {
+    async list(query?: { status?: string; search?: string }): Promise<PurchaseOrder[]> {
+      const res = await api.getList<Parameters<typeof mapPurchaseOrder>[0]>(
+        "/purchase-orders?limit=100",
+        { query: query as Record<string, string | number | boolean> | undefined },
+      );
+      return res.data.map(mapPurchaseOrder);
+    },
+    async get(id: string): Promise<PurchaseOrder> {
+      const po = await api.get<Parameters<typeof mapPurchaseOrder>[0]>(
+        `/purchase-orders/${id}`,
+      );
+      return mapPurchaseOrder(po);
+    },
+    create(input: PurchaseOrderInput): Promise<PurchaseOrder> {
+      return api
+        .post<Parameters<typeof mapPurchaseOrder>[0]>("/purchase-orders", input)
+        .then(mapPurchaseOrder);
+    },
+    update(id: string, input: Partial<PurchaseOrderInput>): Promise<PurchaseOrder> {
+      return api
+        .patch<Parameters<typeof mapPurchaseOrder>[0]>(
+          `/purchase-orders/${id}`,
+          input,
+        )
+        .then(mapPurchaseOrder);
+    },
+    submit(id: string): Promise<PurchaseOrder> {
+      return api
+        .post<Parameters<typeof mapPurchaseOrder>[0]>(
+          `/purchase-orders/${id}/submit`,
+          {},
+        )
+        .then(mapPurchaseOrder);
+    },
+    approve(id: string): Promise<PurchaseOrder> {
+      return api
+        .post<Parameters<typeof mapPurchaseOrder>[0]>(
+          `/purchase-orders/${id}/approve`,
+          {},
+        )
+        .then(mapPurchaseOrder);
+    },
+    cancel(id: string): Promise<PurchaseOrder> {
+      return api
+        .post<Parameters<typeof mapPurchaseOrder>[0]>(
+          `/purchase-orders/${id}/cancel`,
+          {},
+        )
+        .then(mapPurchaseOrder);
+    },
+    receive(
+      id: string,
+      quantities?: Record<string, number>,
+    ): Promise<PurchaseOrder & { invoiceId?: string }> {
+      return api
+        .post<Parameters<typeof mapPurchaseOrder>[0] & { invoiceId?: string }>(
+          `/purchase-orders/${id}/receive`,
+          quantities ? { quantities } : {},
+        )
+        .then((po) => ({ ...mapPurchaseOrder(po), invoiceId: po.invoiceId }));
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/purchase-orders/${id}`);
+    },
+  };
+}
+
+// ---- Fixed assets ----
+
+export interface AssetInput {
+  code: string;
+  name: string;
+  category?: string;
+  purchaseDate?: string;
+  cost?: number;
+  salvageValue?: number;
+  usefulLifeMonths: number;
+  depreciationMethod?: "straight-line" | "declining";
+  accountId?: string;
+  accumulatedDepreciationAccountId?: string;
+  depreciationExpenseAccountId?: string;
+  status?: "active" | "disposed" | "writtenOff";
+  notes?: string;
+}
+
+export function assetsApi() {
+  return {
+    async list(): Promise<Asset[]> {
+      const res = await api.getList<Parameters<typeof mapAsset>[0]>(
+        "/assets?limit=100",
+      );
+      return res.data.map(mapAsset);
+    },
+    async get(id: string): Promise<Asset> {
+      const asset = await api.get<Parameters<typeof mapAsset>[0]>(`/assets/${id}`);
+      return mapAsset(asset);
+    },
+    create(input: AssetInput): Promise<Asset> {
+      return api
+        .post<Parameters<typeof mapAsset>[0]>("/assets", input)
+        .then(mapAsset);
+    },
+    update(id: string, input: Partial<AssetInput>): Promise<Asset> {
+      return api
+        .patch<Parameters<typeof mapAsset>[0]>(`/assets/${id}`, input)
+        .then(mapAsset);
+    },
+    depreciate(id: string, period?: string): Promise<Asset & { run?: unknown }> {
+      return api
+        .post<Parameters<typeof mapAsset>[0] & { run?: unknown }>(
+          `/assets/${id}/depreciate`,
+          period ? { period } : {},
+        )
+        .then((asset) => ({ ...mapAsset(asset), run: asset.run }));
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/assets/${id}`);
+    },
+  };
+}
+
+// ---- Customer advances ----
+
+export interface AdvanceInput {
+  partyId: string;
+  amount: number;
+  currency?: string;
+  date: string;
+  method?: string;
+  reference?: string;
+  notes?: string;
+}
+
+export function advancesApi() {
+  return {
+    async list(): Promise<CustomerAdvance[]> {
+      const res = await api.getList<Parameters<typeof mapCustomerAdvance>[0]>(
+        "/advances?limit=100",
+      );
+      return res.data.map(mapCustomerAdvance);
+    },
+    async get(id: string): Promise<CustomerAdvance> {
+      const advance = await api.get<Parameters<typeof mapCustomerAdvance>[0]>(
+        `/advances/${id}`,
+      );
+      return mapCustomerAdvance(advance);
+    },
+    create(input: AdvanceInput): Promise<CustomerAdvance> {
+      return api
+        .post<Parameters<typeof mapCustomerAdvance>[0]>("/advances", input)
+        .then(mapCustomerAdvance);
+    },
+    update(id: string, input: Partial<AdvanceInput>): Promise<CustomerAdvance> {
+      return api
+        .patch<Parameters<typeof mapCustomerAdvance>[0]>(
+          `/advances/${id}`,
+          input,
+        )
+        .then(mapCustomerAdvance);
+    },
+    allocate(
+      id: string,
+      invoiceId: string,
+      amount: number,
+    ): Promise<CustomerAdvance> {
+      return api
+        .post<Parameters<typeof mapCustomerAdvance>[0]>(
+          `/advances/${id}/allocate`,
+          { invoiceId, amount },
+        )
+        .then(mapCustomerAdvance);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/advances/${id}`);
+    },
+  };
+}
+
+// ---- Alerts ----
+
+export function alertsApi() {
+  return {
+    summary(): Promise<AlertsSummary> {
+      return api.get<AlertsSummary>("/alerts");
+    },
+    notify(): Promise<{ created: number }> {
+      return api.post<{ created: number }>("/alerts/notify", {});
+    },
+  };
+}
+
+// ---- Import ----
+
+export interface ImportProductRow {
+  sku: string;
+  name: string;
+  description?: string;
+  category?: string;
+  brand?: string;
+  unit?: string;
+  purchasePrice?: number;
+  salePrice?: number;
+  taxRate?: number;
+  trackStock?: boolean;
+  reorderLevel?: number;
+  barcode?: string;
+}
+
+export interface ImportPartyRow {
+  type: "customer" | "supplier";
+  name: string;
+  code?: string;
+  contactName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  taxNumber?: string;
+  creditLimit?: number;
+  currency?: string;
+}
+
+export function importApi() {
+  return {
+    products(rows: ImportProductRow[], updateExisting = true): Promise<ImportResult> {
+      return api.post<ImportResult>("/import/products", { rows, updateExisting });
+    },
+    parties(rows: ImportPartyRow[], updateExisting = true): Promise<ImportResult> {
+      return api.post<ImportResult>("/import/parties", { rows, updateExisting });
+    },
+  };
+}
+
+// ---- Share ----
+
+export function shareApi() {
+  return {
+    build(input: { type: "invoice" | "statement"; id?: string; partyId?: string; to?: string }): Promise<ShareLink> {
+      return api.post<ShareLink>("/share", input);
     },
   };
 }

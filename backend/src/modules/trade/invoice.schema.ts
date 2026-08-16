@@ -30,6 +30,10 @@ export const invoiceCreateSchema = z.object({
   notes: z.string().max(2000).optional(),
   /** Optional id of the quote this invoice was converted from. */
   quoteId: z.string().optional(),
+  /** Currency code (defaults to the party / company currency). */
+  currency: z.string().max(3).optional(),
+  /** Optional id of the purchase order this invoice was generated from. */
+  purchaseOrderId: z.string().optional(),
 });
 
 export const invoiceUpdateSchema = z.object({
@@ -73,11 +77,13 @@ export const invoiceSchema = z.object({
   tax: z.number(),
   total: z.number(),
   paidAmount: z.number(),
+  currency: z.string(),
   received: z.boolean(),
   status: z.enum(["draft", "issued", "partial", "paid", "void"]),
   paymentMethod: z.string().optional(),
   notes: z.string().optional(),
   quoteId: z.string().optional(),
+  purchaseOrderId: z.string().optional(),
   createdBy: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),

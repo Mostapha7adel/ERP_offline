@@ -8,6 +8,7 @@ import { stockItemRepository } from "../inventory/inventory.repository.js";
 import { treasuryTransactionRepository, treasuryAccountRepository } from "../treasury/treasury.repository.js";
 import { noteRepository } from "../notes/note.repository.js";
 import { accountingService } from "../accounting/accounting.service.js";
+import { statementService } from "./statement.service.js";
 import { AppError } from "../../core/errors/app-error.js";
 import { PERMISSIONS } from "../../core/security/permissions.js";
 import { ok } from "../../core/response/response.js";
@@ -392,75 +393,8 @@ export function registerReportsController(app: FastifyInstance): void {
     const partyId = String(query.partyId);
     const party = await partyRepository.findById(partyId);
     if (!party) throw AppError.notFound("Party not found");
-    const kind = party.type === "customer" ? "sales" : "purchase";
-
-    // Invoice rows increase the party's balance (what they owe / we owe).
-    const allInvoices = await invoiceRepository.findAll();
-    const entries: Array<{ date: string; kind: string; ref: string; description: string; debit: number; credit: number }> = [];
-    for (const inv of allInvoices) {
-      const linked = party.type === "customer" ? inv.customerId === party.id : inv.supplierId === party.id;
-      if (inv.type === kind && inv.status !== "void" && linked) {
-        entries.push({
-          date: inv.invoiceDate,
-          kind: "invoice",
-          ref: inv.number,
-          description: inv.type === "sales" ? "Sales invoice" : "Purchase invoice",
-          debit: round2(inv.total),
-          credit: 0,
-        });
-      }
-    }
-
-    // Payments reduce the balance (money in from customers / out to suppliers).
-    for (const t of await treasuryTransactionRepository.findAll()) {
-      const isPayment =
-        (party.type === "customer" && t.type === "income") ||
-        (party.type === "supplier" && t.type === "expense");
-      if (isPayment && t.partyId === party.id) {
-        entries.push({
-          date: t.date,
-          kind: "payment",
-          ref: t.reference ?? "",
-          description: t.description ?? "",
-          debit: 0,
-          credit: round2(t.amount),
-        });
-      }
-    }
-
-    // Credit notes reduce, debit notes increase.
-    for (const n of await noteRepository.byParty(party.id, kind)) {
-      entries.push({
-        date: n.noteDate,
-        kind: n.noteType === "credit" ? "credit-note" : "debit-note",
-        ref: n.number,
-        description: n.noteType === "credit" ? "Credit note" : "Debit note",
-        debit: n.noteType === "debit" ? round2(n.total) : 0,
-        credit: n.noteType === "credit" ? round2(n.total) : 0,
-      });
-    }
-
-    const order = { "invoice": 0, "debit-note": 1, "credit-note": 2, "payment": 3 };
-    const sortEntries = (a: { date: string; kind: string }, b: { date: string; kind: string }) =>
-      a.date.localeCompare(b.date) || (order[a.kind as keyof typeof order] ?? 9) - (order[b.kind as keyof typeof order] ?? 9);
-
-    const opening = round2(entries.filter((e) => e.date < from).reduce((s, e) => s + e.debit - e.credit, 0));
-    let running = opening;
-    const rows = entries
-      .filter((e) => e.date >= from && e.date <= to)
-      .sort(sortEntries)
-      .map((e) => {
-        running = round2(running + e.debit - e.credit);
-        return { ...e, runningBalance: running };
-      });
-
-    return ok({
-      party: { id: party.id, name: party.name, type: party.type },
-      period: { from, to },
-      openingBalance: opening,
-      closingBalance: running,
-      rows,
-    });
+    const statement = await statementService.forParty(partyId, from, to);
+    return ok(statement);
   });
 
   typed.get("/reports/dashboard", {

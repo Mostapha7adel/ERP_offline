@@ -131,20 +131,27 @@ export async function applyLineStock(
   );
 }
 
-/** Record a received batch (purchase stock-in) with optional expiry. */
+/** Record a received batch (purchase stock-in) with optional expiry and unit cost. */
 export async function recordBatch(input: {
   productId: string;
   warehouseId: string;
   batchNumber: string;
   quantity: number;
   expiryDate?: string;
+  unitCost?: number;
   createdBy: string;
 }): Promise<void> {
-  const { productId, warehouseId, batchNumber, quantity, expiryDate, createdBy } = input;
+  const { productId, warehouseId, batchNumber, quantity, expiryDate, unitCost, createdBy } = input;
   if (quantity <= 0) return;
   const existing = await batchRepository.findByBatchNumber(productId, warehouseId, batchNumber);
   if (existing) {
-    await batchRepository.update({ id: existing.id, data: { quantity: existing.quantity + quantity } });
+    await batchRepository.update({
+      id: existing.id,
+      data: {
+        quantity: existing.quantity + quantity,
+        ...(unitCost !== undefined ? { unitCost } : {}),
+      },
+    });
   } else {
     await batchRepository.create({
       data: {
@@ -152,6 +159,7 @@ export async function recordBatch(input: {
         warehouseId,
         batchNumber,
         quantity,
+        unitCost: unitCost ?? 0,
         expiryDate: expiryDate ? new Date(expiryDate).toISOString() : undefined,
         receivedAt: new Date().toISOString(),
         createdBy,
@@ -160,14 +168,18 @@ export async function recordBatch(input: {
   }
 }
 
-/** Deduct stock-out from batches using FEFO (earliest expiry first, then oldest). */
+/**
+ * Deduct stock-out from batches using FEFO (earliest expiry first, then oldest).
+ * Returns the cost of goods sold based on the FIFO layer costs consumed.
+ */
 export async function consumeBatches(
   productId: string,
   warehouseId: string,
   quantity: number,
-): Promise<void> {
-  if (quantity <= 0) return;
+): Promise<number> {
+  if (quantity <= 0) return 0;
   let remaining = quantity;
+  let cogs = 0;
   const batches = (await batchRepository.byProductWarehouse(productId, warehouseId)).sort((a, b) => {
     if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate);
     if (a.expiryDate) return -1;
@@ -179,7 +191,9 @@ export async function consumeBatches(
     const take = Math.min(batch.quantity, remaining);
     if (take > 0) {
       await batchRepository.update({ id: batch.id, data: { quantity: batch.quantity - take } });
+      cogs += take * (batch.unitCost ?? 0);
       remaining -= take;
     }
   }
+  return Math.round(cogs * 100) / 100;
 }

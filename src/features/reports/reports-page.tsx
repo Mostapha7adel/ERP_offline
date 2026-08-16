@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Printer, RefreshCw, FileSpreadsheet } from "lucide-react";
+import { Download, Printer, RefreshCw, FileSpreadsheet, Share2, Mail, MessageCircle, Loader2 } from "lucide-react";
 import { useT, type TranslateFn } from "@/shared/lib/i18n";
 import { useCustomersStore, useSuppliersStore } from "@/stores/parties-store";
 import { useProductsStore } from "@/stores/products-store";
@@ -13,7 +13,7 @@ import {
   buildExpenseCategories,
   buildTopProducts,
 } from "@/lib/analytics";
-import { reportsApi } from "@/lib/api";
+import { reportsApi, shareApi } from "@/lib/api";
 import type {
   ProfitLossReport,
   InventoryValuationRow,
@@ -38,6 +38,9 @@ import { DataTable, type ColumnDef } from "@/shared/components/data-table/data-t
 import { EmptyState } from "@/shared/components/feedback/states";
 import { TrendIndicator } from "@/shared/components/feedback/trend-indicator";
 import { Combobox } from "@/shared/components/forms/combobox";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
 
 export function ReportsPage() {
   const { t } = useT();
@@ -117,9 +120,9 @@ export function ReportsPage() {
         t("Credit", "دائن"),
         t("Balance", "الرصيد"),
       ],
-      [t("Opening balance", "رصيد افتتاحي"), "", "", "", "", statement.openingBalance],
+      [t("Opening balance", "رصيد افتتاحي"), "", "", "", "", statement.opening],
       ...statement.rows.map((r) => [r.date.slice(0, 10), r.description, r.ref, r.debit, r.credit, r.runningBalance]),
-      [t("Closing balance", "رصيد ختامي"), "", "", "", "", statement.closingBalance],
+      [t("Closing balance", "رصيد ختامي"), "", "", "", "", statement.closing],
     ];
     const saved = await downloadCsv(`statement-${statement.party.name}-${statement.period.from}.csv`, rows);
     if (saved) toast.success(t("Statement exported", "تم تصدير كشف الحساب"));
@@ -132,12 +135,12 @@ export function ReportsPage() {
     const td = `padding:6px 10px`;
     const tdR = `padding:6px 10px;text-align:right`;
     const rows = [
-      `<tr><td style="${td}">${t("Opening balance", "رصيد افتتاحي")}</td><td style="${tdR}">${formatCurrency(statement.openingBalance)}</td></tr>`,
+      `<tr><td style="${td}">${t("Opening balance", "رصيد افتتاحي")}</td><td style="${tdR}">${formatCurrency(statement.opening)}</td></tr>`,
       ...statement.rows.map(
         (r) =>
           `<tr><td style="${td}">${r.date.slice(0, 10)}</td><td style="${td}">${escapeHtml(r.description)}</td><td style="${td}">${escapeHtml(r.ref)}</td><td style="${tdR}">${formatCurrency(r.debit)}</td><td style="${tdR}">${formatCurrency(r.credit)}</td><td style="${tdR}">${formatCurrency(r.runningBalance)}</td></tr>`,
       ),
-      `<tr><td style="${td}">${t("Closing balance", "رصيد ختامي")}</td><td style="${tdR}" colspan="5">${formatCurrency(statement.closingBalance)}</td></tr>`,
+      `<tr><td style="${td}">${t("Closing balance", "رصيد ختامي")}</td><td style="${tdR}" colspan="5">${formatCurrency(statement.closing)}</td></tr>`,
     ].join("");
     const html = `
       <h1 style="margin:0 0 4px;font-size:20px">${t("Party Statement", "كشف حساب")}</h1>
@@ -869,6 +872,7 @@ function StatementView({
   onPrint,
 }: StatementViewProps) {
   const { t } = useT();
+  const [sharing, setSharing] = useState(false);
   const options = useMemo(
     () =>
       parties.map((p) => ({
@@ -910,6 +914,50 @@ function StatementView({
           <Button variant="outline" onClick={onPrint} disabled={!data}>
             <Printer className="size-4" /> {t("Print", "طباعة")}
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={!data || sharing}>
+                {sharing ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4" />}
+                {t("Share", "مشاركة")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={sharing}
+                onClick={async () => {
+                  if (!data) return;
+                  setSharing(true);
+                  try {
+                    const link = await shareApi().build({ type: "statement", partyId: data.party.id });
+                    window.open(link.mailto, "_blank");
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : t("Failed to build share link", "فشل إنشاء رابط المشاركة"));
+                  } finally {
+                    setSharing(false);
+                  }
+                }}
+              >
+                <Mail className="size-4" /> {t("Email", "البريد الإلكتروني")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={sharing}
+                onClick={async () => {
+                  if (!data) return;
+                  setSharing(true);
+                  try {
+                    const link = await shareApi().build({ type: "statement", partyId: data.party.id });
+                    window.open(link.whatsapp, "_blank");
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : t("Failed to build share link", "فشل إنشاء رابط المشاركة"));
+                  } finally {
+                    setSharing(false);
+                  }
+                }}
+              >
+                <MessageCircle className="size-4" /> WhatsApp
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -930,11 +978,11 @@ function StatementView({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex items-center justify-between rounded-xl border p-4">
               <span className="text-sm text-muted-foreground">{t("Opening balance", "رصيد افتتاحي")}</span>
-              <span className="text-lg font-semibold tabular-nums">{formatCurrency(data.openingBalance)}</span>
+              <span className="text-lg font-semibold tabular-nums">{formatCurrency(data.opening)}</span>
             </div>
             <div className="flex items-center justify-between rounded-xl border p-4">
               <span className="text-sm text-muted-foreground">{t("Closing balance", "رصيد ختامي")}</span>
-              <span className="text-lg font-semibold tabular-nums">{formatCurrency(data.closingBalance)}</span>
+              <span className="text-lg font-semibold tabular-nums">{formatCurrency(data.closing)}</span>
             </div>
           </div>
           <DataTable columns={buildStatementColumns(t)} data={data.rows} pagination={false} />

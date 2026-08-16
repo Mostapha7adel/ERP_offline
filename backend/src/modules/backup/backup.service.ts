@@ -154,8 +154,9 @@ export class BackupService {
       "company", "permission", "role", "rolePermission", "user", "authSession",
       "party", "category", "unit", "product", "warehouse", "stockItem", "stockMovement",
       "invoice", "invoiceLine", "invoicePayment", "treasuryAccount", "treasuryTransaction",
-      "account", "costCenter", "journalEntry", "journalDetail", "asset", "report", "setting",
-      "backup", "notification",
+      "account", "costCenter", "journalEntry", "journalDetail", "asset", "assetDepreciationRun",
+      "currencyRate", "purchaseOrder", "purchaseOrderLine", "customerAdvance", "advanceAllocation",
+      "report", "setting", "backup", "notification",
     ] as const;
     const db = prisma as unknown as Record<string, { findMany(): Promise<unknown[]> }>;
     const out: Record<string, unknown[]> = {};
@@ -210,7 +211,9 @@ export class BackupService {
 
     await runInTransaction(async () => {
       const deleteTables = [
-        "journalDetail", "journalEntry", "asset", "costCenter", "account", "invoicePayment",
+        "journalDetail", "journalEntry", "asset", "assetDepreciationRun", "currencyRate",
+        "purchaseOrderLine", "purchaseOrder", "customerAdvance", "advanceAllocation",
+        "costCenter", "account", "invoicePayment",
         "invoiceLine", "invoice", "treasuryTransaction", "treasuryAccount", "stockMovement",
         "stockItem", "warehouse", "product", "unit", "category", "party", "authSession",
         "user", "rolePermission", "role", "permission", "company", "report", "setting",
@@ -219,7 +222,9 @@ export class BackupService {
       const createTables = [
         "company", "permission", "role", "rolePermission", "user", "authSession",
         "party", "category", "unit", "product", "warehouse", "stockItem", "stockMovement",
-        "account", "costCenter", "asset", "journalEntry", "journalDetail",
+        "account", "costCenter", "asset", "assetDepreciationRun", "currencyRate",
+        "purchaseOrder", "purchaseOrderLine", "customerAdvance", "advanceAllocation",
+        "journalEntry", "journalDetail",
         "treasuryAccount", "treasuryTransaction", "invoice", "invoiceLine", "invoicePayment",
         "report", "setting", "backup", "notification",
       ] as const;

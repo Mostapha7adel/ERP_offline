@@ -23,6 +23,13 @@ import type {
   AppNotification,
   AuditLog,
   Address,
+  CurrencyRate,
+  PurchaseOrder,
+  PurchaseOrderLine,
+  Asset,
+  AssetDepreciationRun,
+  CustomerAdvance,
+  AdvanceAllocation,
 } from "@/types/domain";
 import { mapBackendPermissions } from "./permissions";
 
@@ -71,7 +78,8 @@ export function mapParty(p: BackendParty): Party {
     phone: p.phone ?? "",
     taxId: p.taxNumber ?? "",
     currency: p.currency ?? "USD",
-    paymentTerms: p.creditLimit != null ? String(p.creditLimit) : "",
+    paymentTerms: "",
+    creditLimit: p.creditLimit,
     address: toAddress(p.address, p.city),
     balance: 0,
     status: p.status,
@@ -793,4 +801,252 @@ function actionTarget(resource: string, resourceId: string): string {
     default:
       return "#";
   }
+}
+
+interface BackendCurrencyRate {
+  id: string;
+  code: string;
+  name?: string;
+  symbol?: string;
+  rate: number;
+  isBase: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapCurrencyRate(c: BackendCurrencyRate): CurrencyRate {
+  return {
+    id: c.id,
+    code: c.code,
+    name: c.name ?? "",
+    symbol: c.symbol ?? "",
+    rate: c.rate,
+    isBase: c.isBase,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  };
+}
+
+interface BackendPurchaseOrderLine {
+  id: string;
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  receivedQty: number;
+  unitPrice: number;
+  discount?: number;
+  taxRate?: number;
+  lineTotal: number;
+}
+
+function mapPurchaseOrderLine(l: BackendPurchaseOrderLine): PurchaseOrderLine {
+  return {
+    id: l.id,
+    purchaseOrderId: "",
+    productId: l.productId ?? "",
+    productName: l.productName,
+    description: l.description,
+    quantity: l.quantity,
+    receivedQty: l.receivedQty,
+    unitPrice: l.unitPrice,
+    discount: l.discount ?? 0,
+    taxRate: l.taxRate ?? 0,
+    lineTotal: l.lineTotal,
+  };
+}
+
+interface BackendPurchaseOrder {
+  id: string;
+  number: string;
+  supplierId?: string;
+  warehouseId?: string;
+  orderDate: string;
+  expectedDate?: string;
+  status: PurchaseOrder["status"];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  currency: string;
+  notes?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  lines?: BackendPurchaseOrderLine[];
+  supplierName?: string;
+  warehouseName?: string;
+  orderedQty?: number;
+  receivedQty?: number;
+  invoiceId?: string;
+}
+
+export function mapPurchaseOrder(po: BackendPurchaseOrder): PurchaseOrder {
+  return {
+    id: po.id,
+    number: po.number,
+    supplierId: po.supplierId ?? "",
+    supplierName: po.supplierName,
+    warehouseId: po.warehouseId,
+    warehouseName: po.warehouseName,
+    orderDate: po.orderDate,
+    expectedDate: po.expectedDate,
+    status: po.status,
+    subtotal: po.subtotal,
+    discount: po.discount,
+    tax: po.tax,
+    total: po.total,
+    currency: po.currency,
+    notes: po.notes,
+    approvedBy: po.approvedBy,
+    approvedAt: po.approvedAt,
+    createdBy: po.createdBy,
+    createdAt: po.createdAt,
+    updatedAt: po.updatedAt,
+    lines: (po.lines ?? []).map((l) => ({
+      ...mapPurchaseOrderLine(l),
+      purchaseOrderId: po.id,
+    })),
+    orderedQty: po.orderedQty,
+    receivedQty: po.receivedQty,
+    invoiceId: po.invoiceId,
+  };
+}
+
+interface BackendAssetDepreciationRun {
+  id: string;
+  assetId: string;
+  period: string;
+  amount: number;
+  accumulated?: number;
+  bookValueAfter?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function mapDepreciationRun(
+  r: BackendAssetDepreciationRun,
+): AssetDepreciationRun {
+  return {
+    id: r.id,
+    assetId: r.assetId,
+    period: r.period,
+    amount: r.amount,
+    bookValueAfter: r.bookValueAfter ?? r.accumulated ?? 0,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  };
+}
+
+interface BackendAsset {
+  id: string;
+  code: string;
+  name: string;
+  category?: string;
+  purchaseDate?: string;
+  cost: number;
+  salvageValue: number;
+  usefulLifeMonths: number;
+  depreciationMethod: string;
+  currentValue: number;
+  accountId?: string;
+  accumulatedDepreciationAccountId?: string;
+  depreciationExpenseAccountId?: string;
+  status: "active" | "disposed" | "writtenOff";
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  accumulatedDepreciation?: number;
+  bookValue?: number;
+  bookValueExpected?: number;
+  runs?: BackendAssetDepreciationRun[];
+  accountName?: string;
+  accumulatedDepreciationAccountName?: string;
+  depreciationExpenseAccountName?: string;
+}
+
+export function mapAsset(a: BackendAsset): Asset {
+  return {
+    id: a.id,
+    code: a.code,
+    name: a.name,
+    category: a.category,
+    purchaseDate: a.purchaseDate ?? "",
+    cost: a.cost,
+    salvageValue: a.salvageValue,
+    usefulLifeMonths: a.usefulLifeMonths,
+    depreciationMethod:
+      a.depreciationMethod === "declining" ? "declining" : "straight-line",
+    currentValue: a.currentValue,
+    accumulatedDepreciation: a.accumulatedDepreciation ?? 0,
+    bookValue: a.bookValue ?? a.bookValueExpected ?? a.cost,
+    status:
+      a.status === "writtenOff"
+        ? "disposed"
+        : a.status === "disposed"
+          ? "disposed"
+          : "active",
+    accountId: a.accountId,
+    accountName: a.accountName,
+    createdAt: a.createdAt,
+    updatedAt: a.updatedAt,
+    runs: (a.runs ?? []).map(mapDepreciationRun),
+  };
+}
+
+interface BackendAdvanceAllocation {
+  id: string;
+  advanceId: string;
+  invoiceId: string;
+  amount: number;
+  appliedAt?: string;
+  invoiceNumber?: string;
+}
+
+function mapAllocation(a: BackendAdvanceAllocation): AdvanceAllocation {
+  return {
+    id: a.id,
+    advanceId: a.advanceId,
+    invoiceId: a.invoiceId,
+    invoiceNumber: a.invoiceNumber,
+    amount: a.amount,
+    allocatedAt: a.appliedAt ?? new Date().toISOString(),
+  };
+}
+
+interface BackendCustomerAdvance {
+  id: string;
+  partyId: string;
+  amount: number;
+  balance: number;
+  currency: string;
+  date: string;
+  method?: string;
+  reference?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  partyName?: string;
+  allocations?: BackendAdvanceAllocation[];
+}
+
+export function mapCustomerAdvance(a: BackendCustomerAdvance): CustomerAdvance {
+  return {
+    id: a.id,
+    partyId: a.partyId,
+    partyName: a.partyName,
+    amount: a.amount,
+    balance: a.balance,
+    currency: a.currency,
+    date: a.date,
+    method: a.method,
+    reference: a.reference,
+    notes: a.notes,
+    createdAt: a.createdAt,
+    updatedAt: a.updatedAt,
+    allocations: (a.allocations ?? []).map(mapAllocation),
+  };
 }

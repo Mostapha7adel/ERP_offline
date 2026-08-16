@@ -6,6 +6,10 @@ import { useProductsStore, useCategoriesStore } from "./products-store";
 import { useUsersStore, useRolesStore, useAuditLogsStore } from "./system-store";
 import { useBankAccountsStore, useTransactionsStore } from "./treasury-store";
 import { useSettingsStore } from "./settings-store";
+import { useCurrenciesStore } from "./currencies-store";
+import { usePurchaseOrdersStore } from "./purchase-orders-store";
+import { useAssetsStore } from "./assets-store";
+import { useAdvancesStore } from "./advances-store";
 
 /**
  * Reset every hydrated domain store to its default/empty state. Used when a
@@ -28,4 +32,8 @@ export function clearAllDomainData(): void {
   useBankAccountsStore.getState().reset();
   useTransactionsStore.getState().reset();
   useSettingsStore.getState().reset();
+  useCurrenciesStore.getState().reset();
+  usePurchaseOrdersStore.getState().reset();
+  useAssetsStore.getState().reset();
+  useAdvancesStore.getState().reset();
 }

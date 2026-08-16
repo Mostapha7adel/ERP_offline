@@ -207,6 +207,7 @@ model Company {
   costCenters CostCenter[]
   journals    JournalEntry[]
   assets      Asset[]
+  assetRuns   AssetDepreciationRun[]
   reports     Report[]
   settings    Setting[]
   backups     Backup[]
@@ -214,6 +215,11 @@ model Company {
   notifications Notification[] @relation("NotificationCompany")
   networkWorkspaces NetworkWorkspace[]
   networkDevices    NetworkDevice[]
+  currencyRates  CurrencyRate[]
+  purchaseOrders PurchaseOrder[]
+  purchaseOrderLines PurchaseOrderLine[]
+  advances       CustomerAdvance[]
+  advanceAllocations AdvanceAllocation[]
 
   @@index([name])
 }
@@ -362,6 +368,8 @@ model Party {
   tradeNotes       TradeNote[]           @relation("TradeNoteParty")
   treasuryTx       TreasuryTransaction[]
   stockMovements   StockMovement[]
+  purchaseOrders   PurchaseOrder[]       @relation("PurchaseOrderSupplier")
+  advances         CustomerAdvance[]     @relation("CustomerAdvanceParty")
 
   @@unique([companyId, code])
   @@index([companyId, type, status])
@@ -432,6 +440,7 @@ model Product {
   quoteLines   QuoteLine[]
   recurringLines RecurringInvoiceLine[]
   noteLines    TradeNoteLine[]
+  purchaseOrderLines PurchaseOrderLine[]
 
   @@unique([companyId, sku])
   @@index([companyId, barcode])
@@ -467,6 +476,7 @@ model Warehouse {
   quotes     Quote[]
   recurring  RecurringInvoice[]
   tradeNotes TradeNote[]
+  purchaseOrders PurchaseOrder[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -503,6 +513,7 @@ model Batch {
   warehouseId String
   batchNumber String
   quantity    Float     @default(0)
+  unitCost    Float     @default(0)
   expiryDate  DateTime?
   receivedAt  DateTime  @default(now())
   createdBy   String
@@ -567,6 +578,7 @@ model Invoice {
   tax           Float          @default(0)
   total         Float          @default(0)
   paidAmount    Float          @default(0)
+  currency      String         @default("EGP")
   received      Boolean        @default(false)
   status        InvoiceStatus  @default(draft)
   paymentMethod PaymentMethod?
@@ -584,8 +596,11 @@ model Invoice {
   payments  InvoicePayment[]
   quote     Quote?           @relation("QuoteConversion", fields: [quoteId], references: [id], onDelete: SetNull)
   tradeNotes TradeNote[]
+  purchaseOrder PurchaseOrder? @relation("PurchaseOrderInvoices", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  advanceAllocations AdvanceAllocation[]
 
   quoteId String? @unique
+  purchaseOrderId String?
 
   @@unique([companyId, number])
   @@index([companyId, type, status])
@@ -1017,10 +1032,175 @@ model Asset {
   account                        Account? @relation("AssetMainAccount", fields: [accountId], references: [id], onDelete: SetNull)
   accumulatedDepreciationAccount Account? @relation("AssetAccumDep", fields: [accumulatedDepreciationAccountId], references: [id], onDelete: SetNull)
   depreciationExpenseAccount     Account? @relation("AssetDepExpense", fields: [depreciationExpenseAccountId], references: [id], onDelete: SetNull)
+  runs                           AssetDepreciationRun[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
   @@index([accountId])
+}
+
+// Depreciation runs (monthly journaled depreciation per asset)
+model AssetDepreciationRun {
+  id               String   @id @default(uuid())
+  companyId        String
+  assetId          String
+  period           String // YYYY-MM
+  amount           Float    @default(0)
+  accumulated      Float    @default(0)
+  journalId        String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  asset   Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, assetId, period])
+  @@index([companyId, assetId])
+}
+
+// -----------------------------------------------------------------------------
+// Currency exchange rates (multi-currency support)
+// -----------------------------------------------------------------------------
+
+model CurrencyRate {
+  id        String   @id @default(uuid())
+  companyId String
+  code      String
+  name      String?
+  symbol    String?
+  rate      Float    @default(1) // units of base currency per 1 unit of this currency
+  isBase    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+// -----------------------------------------------------------------------------
+// Purchase orders (approval workflow + 3-way matching)
+// -----------------------------------------------------------------------------
+
+enum PurchaseOrderStatus {
+  draft
+  pending
+  approved
+  partially_received
+  received
+  cancelled
+}
+
+model PurchaseOrder {
+  id           String               @id @default(uuid())
+  companyId    String
+  number       String
+  supplierId   String?
+  warehouseId  String?
+  orderDate    DateTime
+  expectedDate DateTime?
+  status       PurchaseOrderStatus  @default(draft)
+  subtotal     Float                @default(0)
+  discount     Float                @default(0)
+  tax          Float                @default(0)
+  total        Float                @default(0)
+  currency     String               @default("EGP")
+  notes        String?
+  approvedBy   String?
+  approvedAt   DateTime?
+  createdBy    String
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  deletedAt    DateTime?
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier  Party?           @relation("PurchaseOrderSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?       @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines     PurchaseOrderLine[]
+  invoices  Invoice[]        @relation("PurchaseOrderInvoices")
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([companyId, orderDate])
+  @@index([supplierId])
+}
+
+model PurchaseOrderLine {
+  id             String  @id @default(uuid())
+  purchaseOrderId String
+  productId      String?
+  productName    String
+  description    String?
+  quantity       Float   @default(0)
+  receivedQty    Float   @default(0)
+  unitPrice      Float   @default(0)
+  discount       Float   @default(0)
+  taxRate        Float   @default(0)
+  lineTotal      Float   @default(0)
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  companyId     String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+// -----------------------------------------------------------------------------
+// Customer advances (collections in advance of delivery)
+// -----------------------------------------------------------------------------
+
+model CustomerAdvance {
+  id         String   @id @default(uuid())
+  companyId  String
+  partyId    String
+  amount     Float    @default(0)
+  balance    Float    @default(0)
+  currency   String   @default("EGP")
+  date       DateTime
+  method     PaymentMethod?
+  reference  String?
+  notes      String?
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  company Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  party   Party               @relation("CustomerAdvanceParty", fields: [partyId], references: [id], onDelete: Restrict)
+  allocations AdvanceAllocation[]
+
+  @@index([companyId, partyId])
+  @@index([companyId, date])
+}
+
+model AdvanceAllocation {
+  id         String   @id @default(uuid())
+  companyId  String
+  advanceId  String
+  invoiceId  String
+  amount     Float    @default(0)
+  appliedAt  DateTime @default(now())
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  advance CustomerAdvance @relation(fields: [advanceId], references: [id], onDelete: Cascade)
+  invoice Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([advanceId])
+  @@index([invoiceId])
 }
 
 // -----------------------------------------------------------------------------

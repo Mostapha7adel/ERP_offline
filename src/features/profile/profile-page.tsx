@@ -33,7 +33,7 @@ type ProfileValues = z.infer<typeof profileSchema>;
 
 const GROUP_ORDER = [
   "dashboard", "customers", "suppliers", "products", "warehouses",
-  "inventory", "sales", "purchases", "treasury", "accounting",
+  "inventory", "sales", "purchases", "quotes", "recurring", "treasury", "accounting",
   "reports", "users", "roles", "settings", "backup",
 ];
 
@@ -46,6 +46,8 @@ const GROUP_LABELS: Record<string, string> = {
   inventory: "Inventory",
   sales: "Sales",
   purchases: "Purchases",
+  quotes: "Quotes",
+  recurring: "Recurring",
   treasury: "Treasury",
   accounting: "Accounting",
   reports: "Reports",
@@ -130,6 +132,28 @@ const PERMISSION_LABELS_AR: Record<PermissionKey, string> = {
   "settings.update": "تعديل الإعدادات",
   "backup.manage": "إدارة النسخ الاحتياطي والاستعادة",
   "network.view": "عرض الشبكة والأجهزة",
+  "purchase-orders.view": "عرض أوامر الشراء",
+  "purchase-orders.create": "إنشاء أوامر الشراء",
+  "purchase-orders.update": "تعديل أوامر الشراء",
+  "purchase-orders.approve": "اعتماد أوامر الشراء",
+  "purchase-orders.receive": "استلام أوامر الشراء",
+  "purchase-orders.delete": "حذف أوامر الشراء",
+  "assets.view": "عرض الأصول الثابتة",
+  "assets.create": "إنشاء الأصول الثابتة",
+  "assets.update": "تعديل الأصول الثابتة",
+  "assets.depreciate": "تشغيل الإهلاك",
+  "assets.delete": "حذف الأصول الثابتة",
+  "currencies.view": "عرض العملات",
+  "currencies.create": "إنشاء العملات",
+  "currencies.update": "تعديل العملات",
+  "currencies.delete": "حذف العملات",
+  "advances.view": "عرض السلف",
+  "advances.create": "إنشاء سلف",
+  "advances.update": "تعديل وتخصيص السلف",
+  "advances.delete": "حذف السلف",
+  "alerts.view": "عرض التنبيهات",
+  "import.create": "استيراد البيانات",
+  "share.create": "مشاركة الفواتير وكشوف الحساب",
 };
 
 export function ProfilePage() {

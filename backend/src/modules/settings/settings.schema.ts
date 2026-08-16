@@ -22,6 +22,15 @@ export const preferencesSchema = z.object({
   dateFormat: z.string().max(20).default("yyyy-MM-dd"),
   notifyOnLowStock: z.boolean().default(true),
   notifyOnInvoiceCreated: z.boolean().default(true),
+  /** Inventory costing method: weighted average (average) or FIFO. */
+  costingMethod: z.enum(["average", "fifo"]).default("average"),
+  /** Enforce the customer credit limit when creating sales invoices. */
+  enforceCreditLimit: z.boolean().default(false),
+  /** Scheduled auto-backup configuration (runs locally, may target a synced folder). */
+  autoBackupEnabled: z.boolean().default(false),
+  autoBackupFrequencyHours: z.number().int().positive().default(24),
+  autoBackupRetention: z.number().int().positive().default(7),
+  autoBackupFolder: z.string().max(500).default(""),
 });
 
 export const settingsUpdateSchema = z.object({

@@ -73,6 +73,7 @@ export function PartyFormDialog({
       country: party?.address.country ?? "",
       postalCode: party?.address.postalCode ?? "",
       note: party?.note ?? "",
+      creditLimit: party?.creditLimit != null ? String(party.creditLimit) : "",
     },
   });
 
@@ -96,6 +97,7 @@ export function PartyFormDialog({
       country: party?.address.country ?? "",
       postalCode: party?.address.postalCode ?? "",
       note: party?.note ?? "",
+      creditLimit: party?.creditLimit != null ? String(party.creditLimit) : "",
     });
   }, [open, party, nextCode, form]);
 
@@ -111,6 +113,10 @@ export function PartyFormDialog({
         city: values.city || undefined,
         taxNumber: values.taxId?.trim() || undefined,
         currency: values.currency,
+        creditLimit:
+          values.creditLimit != null && Number(values.creditLimit) > 0
+            ? Number(values.creditLimit)
+            : undefined,
         notes: values.note || undefined,
         status: values.status === "inactive" ? ("inactive" as const) : ("active" as const),
       };
@@ -266,6 +272,28 @@ export function PartyFormDialog({
                 )}
               />
             </div>
+
+            {type === "customer" ? (
+              <FormField
+                control={form.control}
+                name="creditLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("Credit limit", "الحد الائتماني")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder={t("e.g. 50000", "مثال: 50000")}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
 
             <div className="rounded-lg border bg-muted/30 p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

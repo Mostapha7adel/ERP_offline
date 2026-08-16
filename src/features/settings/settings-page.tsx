@@ -66,6 +66,12 @@ export function SettingsPage() {
         notifyOnLowStock: next.notificationsEnabled,
         notifyOnInvoiceCreated: next.notificationsEnabled,
         taxEnabled: next.defaultTaxRate > 0,
+        costingMethod: next.costingMethod,
+        enforceCreditLimit: next.enforceCreditLimit,
+        autoBackupEnabled: next.autoBackupEnabled,
+        autoBackupFrequencyHours: next.autoBackupFrequencyHours,
+        autoBackupRetention: next.autoBackupRetention,
+        autoBackupFolder: next.autoBackupFolder || undefined,
       });
       toast.success(t("Preference updated", "تم تحديث التفضيلات"));
     } catch {
@@ -155,6 +161,19 @@ export function SettingsPage() {
                 options={[{ value: "USD", label: t("US Dollar", "دولار أمريكي") }, { value: "EUR", label: t("Euro", "يورو") }, { value: "EGP", label: t("Egyptian Pound", "جنيه مصري") }]}
                 onChange={(currency) => savePreferences({ currency })}
               />
+              <PrefSelect
+                label={t("Costing method", "طريقة التكلفة")}
+                value={preferences.costingMethod}
+                options={[{ value: "average", label: t("Weighted average", "المتوسط المرجح") }, { value: "fifo", label: t("FIFO", "الوارد أولاً صادر أولاً") }]}
+                onChange={(costingMethod) => savePreferences({ costingMethod: costingMethod as "average" | "fifo" })}
+              />
+
+              <PreferenceRow
+                label={t("Enforce credit limits", "تطبيق الحدود الائتمانية")}
+                description={t("Block invoices that exceed a customer's credit limit.", "منع الفواتير التي تتجاوز الحد الائتماني للعميل.")}
+                checked={preferences.enforceCreditLimit}
+                onChange={(enforceCreditLimit) => savePreferences({ enforceCreditLimit })}
+              />
 
               <PreferenceRow
                 label={t("Show decimal values", "إظهار القيم العشرية")}
@@ -184,6 +203,37 @@ export function SettingsPage() {
                 label={t("Default tax rate (%)", "معدل الضريبة الافتراضي (٪)")}
                 defaultValue={preferences.defaultTaxRate}
                 onChange={(defaultTaxRate) => savePreferences({ defaultTaxRate })}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("Automatic backup", "النسخ الاحتياطي التلقائي")}</CardTitle>
+              <CardDescription>{t("Schedule regular backups of your data to a local or cloud folder.", "جدولة نسخ احتياطي منتظم لبياناتك إلى مجلد محلي أو سحابي.")}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <PreferenceRow
+                label={t("Enable auto-backup", "تفعيل النسخ الاحتياطي التلقائي")}
+                description={t("Automatically create backups on a schedule.", "إنشاء نسخ احتياطية تلقائياً وفق جدول.")}
+                checked={preferences.autoBackupEnabled}
+                onChange={(autoBackupEnabled) => savePreferences({ autoBackupEnabled })}
+              />
+              <NumberField
+                label={t("Frequency (hours)", "التكرار (بالساعات)")}
+                defaultValue={preferences.autoBackupFrequencyHours}
+                onChange={(autoBackupFrequencyHours) => savePreferences({ autoBackupFrequencyHours })}
+              />
+              <NumberField
+                label={t("Retention (days)", "الاحتفاظ (بالأيام)")}
+                defaultValue={preferences.autoBackupRetention}
+                onChange={(autoBackupRetention) => savePreferences({ autoBackupRetention })}
+              />
+              <Field
+                label={t("Backup folder", "مجلد النسخ الاحتياطي")}
+                value={preferences.autoBackupFolder}
+                onChange={(e) => savePreferences({ autoBackupFolder: e.target.value })}
+                placeholder={t("Leave empty for default location", "اتركه فارغاً للموقع الافتراضي")}
               />
             </CardContent>
           </Card>

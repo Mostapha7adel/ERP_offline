@@ -37,6 +37,12 @@ export class SettingsService {
       dateFormat: raw["prefs.dateFormat"] ?? "yyyy-MM-dd",
       notifyOnLowStock: raw["prefs.notifyOnLowStock"] ?? true,
       notifyOnInvoiceCreated: raw["prefs.notifyOnInvoiceCreated"] ?? true,
+      costingMethod: raw["prefs.costingMethod"] ?? "average",
+      enforceCreditLimit: raw["prefs.enforceCreditLimit"] ?? false,
+      autoBackupEnabled: raw["prefs.autoBackupEnabled"] ?? false,
+      autoBackupFrequencyHours: raw["prefs.autoBackupFrequencyHours"] ?? 24,
+      autoBackupRetention: raw["prefs.autoBackupRetention"] ?? 7,
+      autoBackupFolder: raw["prefs.autoBackupFolder"] ?? "",
     });
   }
 

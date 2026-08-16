@@ -125,6 +125,7 @@ export class BatchRepository extends PrismaRepository<Batch> {
       warehouseId: String(row.warehouseId),
       batchNumber: String(row.batchNumber),
       quantity: Number(row.quantity),
+      unitCost: Number(row.unitCost ?? 0),
       expiryDate: this.toISO(row.expiryDate),
       receivedAt: this.toISO(row.receivedAt)!,
       createdBy: String(row.createdBy),

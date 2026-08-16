@@ -46,6 +46,29 @@ export class InvoiceService {
     }
   }
 
+  /** Enforce the customer credit limit: outstanding balance + this invoice must not exceed it. */
+  private async assertCreditLimit(party: { id: string; creditLimit?: number }, invoiceTotal: number): Promise<void> {
+    const limit = party.creditLimit;
+    if (!limit || limit <= 0) return;
+    const outstanding = await this.customerOutstanding(party.id);
+    const projected = outstanding + invoiceTotal;
+    if (projected > limit) {
+      throw AppError.badRequest(
+        `Credit limit exceeded. Outstanding ${outstanding.toFixed(2)} + this invoice ${invoiceTotal.toFixed(2)} exceeds the customer limit of ${limit.toFixed(2)}.`,
+      );
+    }
+  }
+
+  /** Total unpaid balance of a customer's non-void sales invoices. */
+  private async customerOutstanding(customerId: string): Promise<number> {
+    const invoices = await invoiceRepository.byType("sales");
+    return round2(
+      invoices
+        .filter((inv) => inv.customerId === customerId && inv.status !== "void")
+        .reduce((sum, inv) => sum + Math.max(0, inv.total - inv.paidAmount), 0),
+    );
+  }
+
   private async computeLines(lines: InvoiceCreateInput["lines"]): Promise<ComputedLine[]> {
     const result: ComputedLine[] = [];
     for (const line of lines) {
@@ -103,6 +126,21 @@ export class InvoiceService {
         throw AppError.badRequest("Warehouse not found");
       }
 
+      // Resolve currency: explicit → party currency → company currency.
+      let currency = validated.currency ?? "EGP";
+      const partyId = this.type === "sales" ? validated.customerId : validated.supplierId;
+      const party = partyId ? await partyRepository.findById(partyId) : undefined;
+      if (party?.currency) currency = party.currency;
+
+      // Credit-limit enforcement for sales invoices (opt-in setting).
+      if (this.type === "sales" && party) {
+        const { settingsRepository } = await import("../settings/settings.repository.js");
+        const enforce = (await settingsRepository.get("prefs.enforceCreditLimit")) ?? false;
+        if (enforce) {
+          await this.assertCreditLimit(party, total);
+        }
+      }
+
       const invoice = await invoiceRepository.create({
         data: {
           type: this.type,
@@ -118,11 +156,13 @@ export class InvoiceService {
           tax,
           total,
           paidAmount: 0,
+          currency,
           received: this.type === "purchase" ? Boolean(validated.received) : true,
           status: "issued",
           paymentMethod: validated.paymentMethod,
           notes: validated.notes,
           quoteId: validated.quoteId,
+          purchaseOrderId: validated.purchaseOrderId,
           createdBy: principalId,
         },
       });
@@ -150,6 +190,7 @@ export class InvoiceService {
                 batchNumber: line.batchNumber || invoice.number,
                 quantity: line.quantity,
                 expiryDate: line.expiryDate,
+                unitCost: line.unitPrice,
                 createdBy: principalId,
               });
             } else {

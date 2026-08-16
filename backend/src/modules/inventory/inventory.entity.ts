@@ -41,6 +41,7 @@ export interface Batch {
   warehouseId: string;
   batchNumber: string;
   quantity: number;
+  unitCost: number;
   expiryDate?: string;
   receivedAt: string;
   createdBy: string;

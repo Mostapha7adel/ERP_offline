@@ -54,7 +54,29 @@ export type PermissionKey =
   | "settings.view"
   | "settings.update"
   | "backup.manage"
-  | "network.view";
+  | "network.view"
+  | "purchase-orders.view"
+  | "purchase-orders.create"
+  | "purchase-orders.update"
+  | "purchase-orders.approve"
+  | "purchase-orders.receive"
+  | "purchase-orders.delete"
+  | "assets.view"
+  | "assets.create"
+  | "assets.update"
+  | "assets.delete"
+  | "assets.depreciate"
+  | "currencies.view"
+  | "currencies.create"
+  | "currencies.update"
+  | "currencies.delete"
+  | "advances.view"
+  | "advances.create"
+  | "advances.update"
+  | "advances.delete"
+  | "alerts.view"
+  | "import.create"
+  | "share.create";
 
 export interface NavItem {
   title: string;
