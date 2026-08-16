@@ -1082,8 +1082,10 @@ export function reportsApi() {
     sales(range?: ReportRange): Promise<SalesReport> {
       return api.get<SalesReport>("/reports/sales", { query: range ? { ...range } : undefined });
     },
-    inventoryValuation(): Promise<InventoryValuationReport> {
-      return api.get<InventoryValuationReport>("/reports/inventory-valuation");
+    inventoryValuation(warehouseId?: string): Promise<InventoryValuationReport> {
+      return api.get<InventoryValuationReport>("/reports/inventory-valuation", {
+        query: warehouseId ? { warehouseId } : undefined,
+      });
     },
     aging(type: "receivable" | "payable"): Promise<AgingReport> {
       return api.get<AgingReport>("/reports/aging", { query: { type } });

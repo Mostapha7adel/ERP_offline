@@ -189,10 +189,14 @@ export function registerReportsController(app: FastifyInstance): void {
     schema: {
       description: "Inventory valuation report",
       security: [{ bearerAuth: [] }],
+      querystring: z.object({ warehouseId: z.string().optional() }),
       response: { 200: z.object({ success: z.literal(true), data: z.any() }) },
     },
-  }, async () => {
-    const items = await stockItemRepository.findAll();
+  }, async (request) => {
+    const { warehouseId } = request.query as { warehouseId?: string };
+    const items = (await stockItemRepository.findAll()).filter(
+      (s) => !warehouseId || s.warehouseId === warehouseId,
+    );
     let totalValue = 0;
     let totalUnits = 0;
     const rows = [];

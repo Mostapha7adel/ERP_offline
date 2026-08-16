@@ -3,7 +3,7 @@ import { Download, Printer, RefreshCw, FileSpreadsheet, Share2, Mail, MessageCir
 import { useT, type TranslateFn } from "@/shared/lib/i18n";
 import { useCustomersStore, useSuppliersStore } from "@/stores/parties-store";
 import { useProductsStore } from "@/stores/products-store";
-import { useInventoryStore } from "@/stores/inventory-store";
+import { useInventoryStore, useWarehousesStore } from "@/stores/inventory-store";
 import { useInvoicesStore } from "@/stores/invoices-store";
 import { useTransactionsStore } from "@/stores/treasury-store";
 import { useFiscalYearsStore } from "@/stores/fiscal-year-store";
@@ -23,7 +23,7 @@ import type {
   CustomerLedgerReport,
   TrialBalanceReport,
 } from "@/lib/api";
-import type { PartyStatement } from "@/types/domain";
+import type { PartyStatement, Warehouse } from "@/types/domain";
 import { formatCurrency } from "@/lib/format";
 import { downloadCsv, printHtml, escapeHtml } from "@/lib/export";
 import { toast } from "@/shared/lib/toast";
@@ -48,13 +48,13 @@ export function ReportsPage() {
   const suppliers = useSuppliersStore((s) => s.items);
   const products = useProductsStore((s) => s.items);
   const inventory = useInventoryStore((s) => s.items);
+  const warehouses = useWarehousesStore((s) => s.items);
   const invoices = useInvoicesStore((s) => s.items);
   const transactions = useTransactionsStore((s) => s.items);
   const fiscalYears = useFiscalYearsStore((s) => s.items);
 
   const [loading, setLoading] = useState(true);
   const [pnl, setPnl] = useState<ProfitLossReport | null>(null);
-  const [valuation, setValuation] = useState<InventoryValuationReport | null>(null);
   const [receivableAging, setReceivableAging] = useState<AgingReport | null>(null);
   const [payableAging, setPayableAging] = useState<AgingReport | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheetReport | null>(null);
@@ -163,16 +163,14 @@ export function ReportsPage() {
       reportsApi().profitLoss(range),
       reportsApi().cashFlow(range),
       reportsApi().sales(range),
-      reportsApi().inventoryValuation(),
       reportsApi().aging("receivable"),
       reportsApi().aging("payable"),
       reportsApi().balanceSheet(),
       reportsApi().customerLedger(),
       reportsApi().trialBalance(),
     ]);
-    const [p, , , iv, ar, ap, bs, cl, tb] = results;
+    const [p, , , ar, ap, bs, cl, tb] = results;
     setPnl(p.status === "fulfilled" ? p.value : null);
-    setValuation(iv.status === "fulfilled" ? iv.value : null);
     setReceivableAging(ar.status === "fulfilled" ? ar.value : null);
     setPayableAging(ap.status === "fulfilled" ? ap.value : null);
     setBalanceSheet(bs.status === "fulfilled" ? bs.value : null);
@@ -428,7 +426,7 @@ export function ReportsPage() {
           </TabsContent>
 
           <TabsContent value="inventory" className="mt-0 p-4">
-            <InventoryView data={valuation} />
+            <InventoryView warehouses={warehouses} />
           </TabsContent>
 
           <TabsContent value="customers" className="mt-0 p-4">
@@ -621,24 +619,69 @@ function AgingSection({ title, data, bucketLabels }: { title: string; data: Agin
   );
 }
 
-function InventoryView({ data }: { data: InventoryValuationReport | null }) {
+function InventoryView({ warehouses }: { warehouses: Warehouse[] }) {
   const { t } = useT();
-  if (!data) {
-    return <EmptyState title={t("Inventory valuation unavailable", "تقييم المخزون غير متوفر")} description={t("No inventory data returned.", "لا توجد بيانات مخزون.")} />;
-  }
+  const [selected, setSelected] = useState("");
+  const [data, setData] = useState<InventoryValuationReport | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = async (warehouseId: string) => {
+    setLoading(true);
+    try {
+      setData(await reportsApi().inventoryValuation(warehouseId || undefined));
+    } catch {
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleChange = (value: string) => {
+    setSelected(value);
+    void load(value);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex items-center justify-between rounded-xl border p-4">
-          <span className="text-sm text-muted-foreground">{t("Total inventory value", "إجمالي قيمة المخزون")}</span>
-          <span className="text-lg font-semibold tabular-nums">{formatCurrency(data.totalValue)}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-xl border p-4">
-          <span className="text-sm text-muted-foreground">{t("Total units", "إجمالي الوحدات")}</span>
-          <span className="text-lg font-semibold tabular-nums">{data.totalUnits}</span>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground">{t("Warehouse", "المخزن")}</span>
+        <Combobox
+          options={[
+            { value: "", label: t("All warehouses", "كل المخازن") },
+            ...warehouses.map((w) => ({ value: w.id, label: w.name })),
+          ]}
+          value={selected}
+          onValueChange={handleChange}
+          className="w-56"
+        />
       </div>
-      <DataTable columns={buildValuationColumns(t)} data={data.items} pagination={false} />
+      {loading ? (
+        <SkeletonTable rows={6} columns={5} />
+      ) : !data ? (
+        <EmptyState
+          title={t("Inventory valuation unavailable", "تقييم المخزون غير متوفر")}
+          description={t("No inventory data returned.", "لا توجد بيانات مخزون.")}
+        />
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex items-center justify-between rounded-xl border p-4">
+              <span className="text-sm text-muted-foreground">{t("Total inventory value", "إجمالي قيمة المخزون")}</span>
+              <span className="text-lg font-semibold tabular-nums">{formatCurrency(data.totalValue)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border p-4">
+              <span className="text-sm text-muted-foreground">{t("Total units", "إجمالي الوحدات")}</span>
+              <span className="text-lg font-semibold tabular-nums">{data.totalUnits}</span>
+            </div>
+          </div>
+          <DataTable columns={buildValuationColumns(t)} data={data.items} pagination={false} />
+        </>
+      )}
     </div>
   );
 }
