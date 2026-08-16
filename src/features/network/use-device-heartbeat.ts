@@ -1,8 +1,42 @@
 import { useEffect } from "react";
-import { getDeviceConfig, getDeviceId, getDefaultDeviceName, networkApi } from "@/lib/api";
-import { clearDeviceConfig } from "@/lib/api/config";
-import type { ApiError } from "@/lib/api/client";
+import { getDeviceConfig, getDeviceId, getDefaultDeviceName } from "@/lib/api";
+import { clearDeviceConfig, getApiRoot } from "@/lib/api/config";
+import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/auth-store";
+
+/**
+ * Send the heartbeat directly instead of through the authed `api` client.
+ * The heartbeat is validated by the *device token* in the body, so a 401 here
+ * only means "this device is no longer known to the backend" — it must not
+ * trigger the access-token refresh / session-clearing flow of the authed
+ * client (which would log the user out for a stale leftover device token).
+ */
+async function sendHeartbeat(input: {
+  token: string;
+  deviceId: string;
+  deviceName: string;
+  currentUserName?: string;
+}): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${getApiRoot()}/network/heartbeat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError(0, "NETWORK_ERROR", "Cannot reach the backend");
+  }
+  if (!response.ok) {
+    const raw: unknown = await response.json().catch(() => undefined);
+    const error = (raw as { error?: { code?: string; message?: string } })?.error;
+    throw new ApiError(
+      response.status,
+      error?.code ?? "REQUEST_ERROR",
+      error?.message ?? `Request failed (${response.status})`,
+    );
+  }
+}
 
 const HEARTBEAT_INTERVAL_MS = 3_000;
 const MAX_CONSECUTIVE_FAILURES = 2;
@@ -30,7 +64,7 @@ export function useDeviceHeartbeat(): void {
       const cfg = getDeviceConfig();
       if (!cfg.token) return;
       try {
-        await networkApi().heartbeat({
+        await sendHeartbeat({
           token: cfg.token,
           deviceId: getDeviceId(),
           deviceName: cfg.deviceName ?? getDefaultDeviceName(),
@@ -38,11 +72,16 @@ export function useDeviceHeartbeat(): void {
         });
         consecutiveFailures = 0;
       } catch (err) {
-        // Only client devices react to a lost connection; a standalone host
-        // that loses its own backend must not be logged out by this hook.
-        if (getDeviceConfig().mode !== "client") return;
-
         const status = (err as ApiError)?.status;
+
+        // A standalone host never needs a device token: a 401 here just means
+        // a stale leftover token from an old workspace. Drop the stale token
+        // (fall back to "Local only") but never log the host user out.
+        if (getDeviceConfig().mode !== "client") {
+          if (status === 401) clearDeviceConfig();
+          return;
+        }
+
         if (status === 401) {
           // Device was removed by the host (kick) or its token was revoked.
           consecutiveFailures = 0;
