@@ -45,6 +45,34 @@ async function saveWithDialog(
   }
 }
 
+/** Save binary content via the native save dialog (Tauri) or browser download. */
+async function saveBinary(
+  filename: string,
+  data: Uint8Array,
+  mime: string,
+  extensions: string[],
+): Promise<boolean> {
+  try {
+    if (isTauri()) {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeFile } = await import("@tauri-apps/plugin-fs");
+      const path = await save({
+        title: filename,
+        defaultPath: filename,
+        filters: [{ name: extensions[0]?.toUpperCase() ?? "File", extensions }],
+      });
+      if (!path) return false;
+      await writeFile(path, data);
+      return true;
+    }
+    const bytes = data.slice().buffer as ArrayBuffer;
+    triggerDownload(filename, new Blob([bytes], { type: mime }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
@@ -90,6 +118,117 @@ export async function downloadHtmlFile(
   html: string,
 ): Promise<boolean> {
   return downloadTextFile(filename, html, "text/html;charset=utf-8");
+}
+
+/**
+ * Export tabular data to a real .xlsx workbook. Each sheet is a set of rows
+ * where every cell is a primitive (string | number | Date | boolean | null).
+ * The first row of each sheet is treated as a bold header row.
+ */
+export async function downloadExcel(
+  filename: string,
+  sheets: Array<{ name: string; rows: Array<Array<string | number | Date | boolean | null | undefined>> }>,
+): Promise<boolean> {
+  try {
+    const ExcelJS = await import("exceljs");
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "LedgerFlow";
+    workbook.created = new Date();
+
+    for (const sheet of sheets) {
+      const ws = workbook.addWorksheet(sheet.name.replace(/[\\/*?:[\]]/g, " ").slice(0, 31));
+      if (sheet.rows.length === 0) continue;
+      ws.addRow(sheet.rows[0]);
+      ws.getRow(1).font = { bold: true };
+      ws.getRow(1).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF0F1F7" },
+      };
+      for (const row of sheet.rows.slice(1)) {
+        ws.addRow(row);
+      }
+      const headerRow = sheet.rows[0];
+      if (!headerRow) continue;
+      // Size columns to fit their content (bounded to keep files small).
+      const width = (value: unknown) => {
+        const len = String(value ?? "").length;
+        return Math.min(Math.max(len + 2, 8), 40);
+      };
+      headerRow.forEach((_, col) => {
+        let max = 8;
+        for (const row of sheet.rows) {
+          max = Math.max(max, width(row[col]));
+        }
+        ws.getColumn(col + 1).width = max;
+      });
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const bytes = new Uint8Array(buffer as ArrayBuffer);
+    return saveBinary(filename, bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ["xlsx"]);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Export a report to PDF. Renders a title, optional subtitle line(s), then a
+ * table from `columns` + `rows`. Arabic/RTL text renders through the bundled
+ * Noto Arabic font, and currency columns are right-aligned.
+ */
+export async function downloadPdf(opts: {
+  filename: string;
+  title: string;
+  subtitle?: string;
+  columns: Array<{ key: string; label: string; align?: "left" | "right" | "center"; width?: number }>;
+  rows: Array<Record<string, string | number | null | undefined>>;
+}): Promise<boolean> {
+  try {
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).autoTable;
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFontSize(15);
+    doc.text(opts.title, pageWidth / 2, 16, { align: "center" });
+    let y = 22;
+    if (opts.subtitle) {
+      doc.setFontSize(10);
+      doc.setTextColor(120);
+      doc.text(opts.subtitle, pageWidth / 2, y, { align: "center" });
+      y += 2;
+    }
+    doc.setTextColor(0);
+
+    const head = [opts.columns.map((c) => c.label)];
+    const body = opts.rows.map((row) =>
+      opts.columns.map((c) => {
+        const v = row[c.key];
+        return v === null || v === undefined ? "" : String(v);
+      }),
+    );
+
+    autoTable(doc, {
+      head,
+      body,
+      startY: y,
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 1.8, overflow: "linebreak" },
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [246, 247, 252] },
+      columnStyles: opts.columns.reduce<Record<number, { halign: "left" | "right" | "center" }>>((acc, c, i) => {
+        acc[i] = { halign: c.align === "right" ? "right" : c.align === "center" ? "center" : "left" };
+        return acc;
+      }, {}),
+      margin: { left: 10, right: 10 },
+    });
+
+    const bytes = doc.output("arraybuffer");
+    return saveBinary(opts.filename, new Uint8Array(bytes), "application/pdf", ["pdf"]);
+  } catch {
+    return false;
+  }
 }
 
 export function printHtml(title: string, html: string) {

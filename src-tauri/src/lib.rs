@@ -17,7 +17,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![backend::backend_log_tail, backend::backend_port])
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            backend::backend_log_tail,
+            backend::backend_port,
+            backend::backend_app_secret,
+            backend::check_for_updates,
+            backend::install_update
+        ])
         .setup(|app| {
             crate::backend::spawn_backend(app.handle().clone());
             Ok(())

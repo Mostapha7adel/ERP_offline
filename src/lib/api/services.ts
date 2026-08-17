@@ -1144,6 +1144,8 @@ export interface NetworkJoinResult {
   workspaceName: string;
   deviceId: string;
   token: string;
+  /** Host's per-install app secret; echoed back as `x-app-token` on host API calls. */
+  appSecret?: string;
 }
 
 export interface NetworkCreateResult extends NetworkWorkspace {

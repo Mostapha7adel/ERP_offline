@@ -28,10 +28,11 @@ interface InvoiceDetailDrawerProps {
   onMarkReceived?: () => void;
   onVoid?: () => void;
   onDownload?: () => void;
+  onDownloadPdf?: () => void;
   onPrint?: () => void;
 }
 
-export function InvoiceDetailDrawer({ invoice, kind, party, onOpenChange, onMarkPaid, onMarkReceived, onVoid, onDownload, onPrint }: InvoiceDetailDrawerProps) {
+export function InvoiceDetailDrawer({ invoice, kind, party, onOpenChange, onMarkPaid, onMarkReceived, onVoid, onDownload, onDownloadPdf, onPrint }: InvoiceDetailDrawerProps) {
   const { t } = useT();
   const [markingPaid, setMarkingPaid] = useState(false);
   const [receiving, setReceiving] = useState(false);
@@ -128,12 +129,18 @@ export function InvoiceDetailDrawer({ invoice, kind, party, onOpenChange, onMark
             </Button>
           ) : null}
 
-          {onDownload || onPrint ? (
+          {onDownload || onDownloadPdf || onPrint ? (
             <div className="flex gap-2">
               {onDownload ? (
                 <Button variant="outline" className="flex-1" onClick={onDownload}>
                   <Download className="size-4" />
                   {t("Download", "تنزيل")}
+                </Button>
+              ) : null}
+              {onDownloadPdf ? (
+                <Button variant="outline" className="flex-1" onClick={onDownloadPdf}>
+                  <FileText className="size-4" />
+                  {t("PDF", "بي دي إف")}
                 </Button>
               ) : null}
               {onPrint ? (

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
-import { Plus, ReceiptText, Download, MoreHorizontal, Printer, PackageCheck, Pencil } from "lucide-react";
+import { Plus, ReceiptText, Download, MoreHorizontal, Printer, PackageCheck, Pencil, FileText } from "lucide-react";
 import { useInvoicesStore } from "@/stores/invoices-store";
 import { useNotificationsStore } from "@/stores/notifications-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -9,7 +9,7 @@ import { usePermission } from "@/shared/components/permission-gate";
 import { useT, type TranslateFn } from "@/shared/lib/i18n";
 import { useSimulatedLoading } from "@/shared/lib/use-simulated-loading";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { buildInvoiceHtml, downloadHtmlFile, printHtml } from "@/lib/export";
+import { buildInvoiceHtml, downloadHtmlFile, printHtml, downloadPdf } from "@/lib/export";
 import { invoicesApi } from "@/lib/api";
 import { hydrateInventory, hydrateParties, hydrateTreasury } from "@/lib/api/hydration";
 import { toast } from "@/shared/lib/toast";
@@ -213,6 +213,41 @@ export function InvoicesModule({ kind, getParties, getProducts, getWarehouses, g
     if (saved) toast.success(t("Invoice saved", "تم حفظ الفاتورة"));
   };
 
+  const downloadInvoicePdf = async (invoice: Invoice) => {
+    const party = partyMap.get(invoice.partyId);
+    const isSale = kind === "sale";
+    const title = t(
+      isSale ? "Sales Invoice" : "Purchase Order",
+      isSale ? "فاتورة مبيعات" : "أمر شراء",
+    );
+    const saved = await downloadPdf({
+      filename: `${invoice.number}.pdf`,
+      title: `${companyName} — ${invoice.number}`,
+      subtitle: `${title} • ${formatDate(invoice.issueDate)}${invoice.dueDate ? ` • ${t("Due", "الاستحقاق")}: ${formatDate(invoice.dueDate)}` : ""} • ${party?.name ?? t("Unknown", "غير معروف")}`,
+      columns: [
+        { key: "description", label: t("Description", "البيان") },
+        { key: "quantity", label: t("Qty", "الكمية"), align: "right" },
+        { key: "price", label: t("Price", "السعر"), align: "right" },
+        { key: "total", label: t("Total", "الإجمالي"), align: "right" },
+      ],
+      rows: [
+        ...invoice.lines.map((line) => ({
+          description: line.description || line.productId,
+          quantity: String(line.quantity),
+          price: formatCurrency(line.unitPrice, invoice.currency),
+          total: formatCurrency(line.lineTotal, invoice.currency),
+        })),
+        {
+          description: `${t("Subtotal", "المجموع الفرعي")}: ${formatCurrency(invoice.subtotal, invoice.currency)} • ${t("Tax", "الضريبة")}: ${formatCurrency(invoice.tax, invoice.currency)}`,
+          quantity: "",
+          price: "",
+          total: formatCurrency(invoice.total, invoice.currency),
+        },
+      ],
+    });
+    if (saved) toast.success(t("PDF saved", "تم حفظ ملف PDF"));
+  };
+
   const printInvoice = (invoice: Invoice) => {
     printHtml(invoice.number, invoiceHtml(invoice));
   };
@@ -231,6 +266,7 @@ export function InvoicesModule({ kind, getParties, getProducts, getWarehouses, g
         onMarkReceived: markReceived,
         onVoid: markVoid,
         onDownload: downloadInvoice,
+        onDownloadPdf: downloadInvoicePdf,
         onPrint: printInvoice,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,6 +371,7 @@ export function InvoicesModule({ kind, getParties, getProducts, getWarehouses, g
         onMarkReceived={detail && detail.kind === "purchase" && !detail.received && detail.status !== "cancelled" ? () => markReceived(detail) : undefined}
         onVoid={detail ? () => markVoid(detail) : undefined}
         onDownload={detail ? () => downloadInvoice(detail) : undefined}
+        onDownloadPdf={detail ? () => downloadInvoicePdf(detail) : undefined}
         onPrint={detail ? () => printInvoice(detail) : undefined}
       />
     </div>
@@ -353,6 +390,7 @@ function buildColumns({
   onMarkReceived,
   onVoid,
   onDownload,
+  onDownloadPdf,
   onPrint,
 }: {
   t: TranslateFn;
@@ -366,6 +404,7 @@ function buildColumns({
   onMarkReceived: (i: Invoice) => void;
   onVoid: (i: Invoice) => void;
   onDownload: (i: Invoice) => void;
+  onDownloadPdf: (i: Invoice) => void;
   onPrint: (i: Invoice) => void;
 }): ColumnDef<Invoice, any>[] {
   return [
@@ -447,6 +486,9 @@ function buildColumns({
               ) : null}
               <DropdownMenuItem onClick={() => onDownload(invoice)}>
                 <Download className="size-4" /> {t("Download", "تنزيل")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDownloadPdf(invoice)}>
+                <FileText className="size-4" /> {t("PDF", "بي دي إف")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onPrint(invoice)}>
                 <Printer className="size-4" /> {t("Print", "طباعة")}

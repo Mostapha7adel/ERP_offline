@@ -179,7 +179,14 @@ export class NetworkService {
       });
     }
 
-    return { workspaceName: workspace.name, deviceId: input.deviceId, token };
+    return {
+      workspaceName: workspace.name,
+      deviceId: input.deviceId,
+      token,
+      // The host's per-install app secret. Required by every host API call
+      // after join, so the client stores it and echoes it back as x-app-token.
+      appSecret: process.env.LEDGERFLOW_APP_SECRET,
+    };
   }
 
   /** Keep the device online and record the currently signed-in user. */

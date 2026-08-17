@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Printer, RefreshCw, FileSpreadsheet, Share2, Mail, MessageCircle, Loader2 } from "lucide-react";
+import { Download, Printer, RefreshCw, FileSpreadsheet, FileText, Share2, Mail, MessageCircle, Loader2 } from "lucide-react";
 import { useT, type TranslateFn } from "@/shared/lib/i18n";
 import { useCustomersStore, useSuppliersStore } from "@/stores/parties-store";
 import { useProductsStore } from "@/stores/products-store";
@@ -25,7 +25,7 @@ import type {
 } from "@/lib/api";
 import type { PartyStatement, Warehouse } from "@/types/domain";
 import { formatCurrency } from "@/lib/format";
-import { downloadCsv, printHtml, escapeHtml } from "@/lib/export";
+import { downloadCsv, printHtml, escapeHtml, downloadExcel, downloadPdf } from "@/lib/export";
 import { toast } from "@/shared/lib/toast";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button } from "@/shared/components/ui/button";
@@ -227,6 +227,124 @@ export function ReportsPage() {
     if (saved) toast.success(t("Report exported", "تم تصدير التقرير"));
   };
 
+  const handleExportExcel = async () => {
+    const sheets: Array<{ name: string; rows: Array<Array<string | number | Date | boolean | null | undefined>> }> = [];
+
+    // Profit & Loss
+    sheets.push({
+      name: t("P&L", "الأرباح والخسائر"),
+      rows: [
+        [t("Item", "البند"), t("Amount", "المبلغ")],
+        [t("Revenue", "الإيرادات"), pnlData.revenue],
+        [t("Cost of goods sold", "تكلفة البضاعة المباعة"), pnlData.cogs],
+        [t("Gross profit", "إجمالي الربح"), pnlData.grossProfit],
+        [t("Operating overhead", "المصاريف التشغيلية"), pnlData.overhead],
+        [t("Net profit", "صافي الربح"), pnlData.netProfit],
+      ],
+    });
+
+    // Expense breakdown
+    sheets.push({
+      name: t("Expenses", "المصروفات"),
+      rows: [
+        [t("Category", "الفئة"), t("Amount", "المبلغ")],
+        ...expenseCategories.map((c) => [c.name, c.value]),
+      ],
+    });
+
+    // Cash flow
+    sheets.push({
+      name: t("Cash Flow", "التدفق النقدي"),
+      rows: [
+        [t("Period", "الفترة"), t("Inflow", "وارد"), t("Outflow", "صادر")],
+        ...cashFlowSeries.map((c) => [c.label, c.inflow, c.outflow]),
+      ],
+    });
+
+    // Sales by product
+    sheets.push({
+      name: t("Sales", "المبيعات"),
+      rows: [
+        [t("Rank", "الترتيب"), t("Product", "المنتج"), t("Units sold", "الوحدات المباعة"), t("Revenue", "الإيرادات"), t("Trend", "الاتجاه")],
+        ...topRows.map((p) => [p.rank, p.name, p.units, p.revenue, `${p.trend}%`]),
+      ],
+    });
+
+    // Balance sheet
+    if (balanceSheet) {
+      const sectionRows: Array<Array<string | number>> = [];
+      (["assets", "liabilities", "equity"] as const).forEach((key) => {
+        const section = balanceSheet.sections[key];
+        sectionRows.push([section.label, ""]);
+        for (const row of section.rows) sectionRows.push([`${row.code} — ${row.name}`, row.balance]);
+        sectionRows.push([t("Total", "الإجمالي"), section.total]);
+      });
+      sheets.push({
+        name: t("Balance Sheet", "الميزانية"),
+        rows: [
+          [t("Account", "الحساب"), t("Balance", "الرصيد")],
+          ...sectionRows,
+          [t("Total assets", "إجمالي الأصول"), balanceSheet.totalAssets],
+          [t("Liabilities + Equity", "الالتزامات + حقوق الملكية"), balanceSheet.totalLiabilitiesAndEquity],
+        ],
+      });
+    }
+
+    // Trial balance
+    if (trialBalance) {
+      sheets.push({
+        name: t("Trial Balance", "ميزان المراجعة"),
+        rows: [
+          [t("Code", "الرمز"), t("Account", "الحساب"), t("Debit", "مدين"), t("Credit", "دائن")],
+          ...trialBalance.rows.map((r) => [r.code, r.name, r.debit, r.credit]),
+          [t("Total", "الإجمالي"), "", trialBalance.totalDebit, trialBalance.totalCredit],
+        ],
+      });
+    }
+
+    // Aging
+    for (const [label, data] of [
+      [t("Receivables aging", "أعمار الذمم المدينة"), receivableAging],
+      [t("Payables aging", "أعمار الذمم الدائنة"), payableAging],
+    ] as const) {
+      if (!data) continue;
+      sheets.push({
+        name: label.slice(0, 31),
+        rows: [
+          [t("Number", "الرقم"), t("Party", "الطرف"), t("Due date", "تاريخ الاستحقاق"), t("Balance", "الرصيد"), t("Bucket", "الشريحة")],
+          ...data.rows.map((r) => [r.number, r.partyName, r.dueDate?.slice(0, 10) ?? "", r.balance, r.bucket]),
+        ],
+      });
+    }
+
+    const saved = await downloadExcel(`ledgerflow-reports-${new Date().toISOString().slice(0, 10)}.xlsx`, sheets);
+    if (saved) toast.success(t("Excel exported", "تم تصدير ملف Excel"));
+  };
+
+  const handleExportPdf = async () => {
+    const now = new Date().toLocaleDateString();
+    const columns = [
+      { key: "product", label: t("Product", "المنتج") },
+      { key: "units", label: t("Units sold", "الوحدات المباعة"), align: "right" as const },
+      { key: "revenue", label: t("Revenue", "الإيرادات"), align: "right" as const },
+    ];
+    const saved = await downloadPdf({
+      filename: `ledgerflow-report-${new Date().toISOString().slice(0, 10)}.pdf`,
+      title: t("Financial Reports", "التقارير المالية"),
+      subtitle: now,
+      columns,
+      rows: [
+        ...topRows.map((p) => ({ product: p.name, units: p.units, revenue: p.revenue })),
+        {
+          product: `${t("Net profit", "صافي الربح")}: ${formatCurrency(pnlData.netProfit)}`,
+          units: `${t("Inventory value", "قيمة المخزون")}: ${formatCurrency(inventoryValue)}`,
+          revenue: `${t("Receivables", "الذمم")}: ${formatCurrency(receivable)}`,
+        },
+      ],
+    });
+    if (saved) toast.success(t("PDF exported", "تم تصدير ملف PDF"));
+  };
+
   const handlePrint = () => {
     const th = `border-bottom:2px solid #333;text-align:left;padding:6px 10px`;
     const thR = `border-bottom:2px solid #333;text-align:right;padding:6px 10px`;
@@ -307,8 +425,14 @@ export function ReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("Reports", "التقارير")} description={t("Generate and review financial statements.", "إنشاء ومراجعة القوائم المالية.")}>
+        <Button variant="outline" onClick={() => void handleExportExcel()}>
+          <FileSpreadsheet className="size-4" /> {t("Excel", "إكسل")}
+        </Button>
+        <Button variant="outline" onClick={() => void handleExportPdf()}>
+          <FileText className="size-4" /> {t("PDF", "بي دي إف")}
+        </Button>
         <Button variant="outline" onClick={handleExport}>
-          <Download className="size-4" /> {t("Export", "تصدير")}
+          <Download className="size-4" /> {t("CSV", "سي إس في")}
         </Button>
         <Button variant="outline" onClick={handlePrint}>
           <Printer className="size-4" /> {t("Print", "طباعة")}

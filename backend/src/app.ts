@@ -42,6 +42,33 @@ export async function buildServer(): Promise<FastifyInstance> {
     return version ? { status: "ok", port: getBoundPort(), version } : { status: "ok", port: getBoundPort() };
   });
 
+  // App-secret guard: every /api/v1 request must present the per-install
+  // secret (`x-app-token` header) that the Tauri shell generated and passed
+  // via LEDGERFLOW_APP_SECRET. Knowing the port alone is therefore not enough
+  // to reach the API. The network discovery/join/stream/heartbeat endpoints
+  // stay open because they are how a LAN client learns about a host before it
+  // holds the secret (join hands it out in its response).
+  app.addHook("preHandler", async (request, reply) => {
+    const secret = env.LEDGERFLOW_APP_SECRET;
+    if (!secret) return; // dev/test runs without a secret — guard disabled
+    const url = request.url.split("?")[0];
+    if (!url.startsWith("/api/v1/")) return;
+    if (
+      url === "/api/v1/network/status" ||
+      url === "/api/v1/network/join" ||
+      url === "/api/v1/network/stream" ||
+      url === "/api/v1/network/heartbeat"
+    ) {
+      return;
+    }
+    if (request.headers["x-app-token"] !== secret) {
+      return reply.code(401).send({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Invalid or missing app token" },
+      });
+    }
+  });
+
   await registerPlugins(app);
   await authPlugin(app);
   await registerModules(app);

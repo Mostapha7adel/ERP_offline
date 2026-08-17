@@ -238,3 +238,38 @@ export function buildOutstanding(invoices: Invoice[]): {
   }
   return { customers, suppliers, total: customers + suppliers };
 }
+
+export interface AgingBucket {
+  key: string;
+  label: string;
+  /** Money owed to the business (unpaid customer balances) in this bucket. */
+  receivables: number;
+  /** Money the business owes (unpaid supplier balances) in this bucket. */
+  payables: number;
+  color: string;
+}
+
+/** Split outstanding balances by how overdue they are.
+ * Buckets: current (< 30 days), 31-60, 61-90, 90+ days past due. */
+export function buildAging(invoices: Invoice[]): AgingBucket[] {
+  const now = Date.now();
+  const DAY = 86_400_000;
+  const buckets: AgingBucket[] = [
+    { key: "current", label: "Current", receivables: 0, payables: 0, color: "hsl(152 69% 31%)" },
+    { key: "30", label: "31–60 days", receivables: 0, payables: 0, color: "hsl(199 89% 48%)" },
+    { key: "60", label: "61–90 days", receivables: 0, payables: 0, color: "hsl(38 92% 50%)" },
+    { key: "90", label: "90+ days", receivables: 0, payables: 0, color: "hsl(335 79% 56%)" },
+  ];
+  for (const inv of invoices) {
+    if (isVoid(inv)) continue;
+    const due = Math.max(0, inv.total - inv.paid);
+    if (due <= 0) continue;
+    const age = now - new Date(inv.issueDate).getTime();
+    const idx = age < 30 * DAY ? 0 : age < 60 * DAY ? 1 : age < 90 * DAY ? 2 : 3;
+    const bucket = buckets[idx];
+    if (!bucket) continue;
+    if (inv.kind === "sale") bucket.receivables += due;
+    else bucket.payables += due;
+  }
+  return buckets;
+}

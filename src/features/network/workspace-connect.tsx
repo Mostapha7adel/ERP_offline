@@ -109,7 +109,7 @@ export function WorkspaceConnect() {
         deviceId,
         deviceName,
       });
-      saveDeviceConfig({ mode: "client", host: hostAddress, deviceName, token: result.token });
+      saveDeviceConfig({ mode: "client", host: hostAddress, deviceName, token: result.token, appSecret: result.appSecret });
       setConnected(true);
       setHost(hostAddress);
       setExpanded(false);

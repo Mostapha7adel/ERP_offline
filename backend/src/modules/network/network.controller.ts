@@ -20,6 +20,8 @@ const joinResponseSchema = z.object({
   workspaceName: z.string(),
   deviceId: z.string(),
   token: z.string(),
+  /** Per-install app secret of the host, so the client can talk to the host API. */
+  appSecret: z.string().optional(),
 });
 
 const statusSchema = z.object({

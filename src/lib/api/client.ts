@@ -1,4 +1,4 @@
-import { getApiRoot, getDeviceConfig, ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "./config";
+import { getApiRoot, getAppSecret, getDeviceConfig, ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "./config";
 
 export interface ApiErrorBody {
   code: string;
@@ -180,6 +180,7 @@ async function request<T>(
     Accept: "application/json",
     ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(getAppSecret() ? { "x-app-token": getAppSecret() as string } : {}),
     ...options.headers,
   };
 
@@ -271,6 +272,7 @@ async function requestEnvelope<T>(
     Accept: "application/json",
     ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(getAppSecret() ? { "x-app-token": getAppSecret() as string } : {}),
     ...options.headers,
   };
 
@@ -355,6 +357,7 @@ export const api = {
     const headers: Record<string, string> = {
       Accept: "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(getAppSecret() ? { "x-app-token": getAppSecret() as string } : {}),
       ...options.headers,
     };
     let response: Response;

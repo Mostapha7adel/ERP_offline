@@ -13,6 +13,11 @@ const envSchema = z.object({
   // Network mode: "standalone" (default, local only), "host" (the super admin
   // device serves the LAN workspace), or "client" (a device joined to a host).
   LAN_MODE: z.enum(["standalone", "host", "client"]).default("standalone"),
+  // Per-install app secret issued by the Tauri shell. Required on every
+  // /api/v1 request (except the public discovery/join endpoints) via the
+  // `x-app-token` header, so knowing the port alone is not enough to use the
+  // API. Absent (dev/test) means the guard is disabled.
+  LEDGERFLOW_APP_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

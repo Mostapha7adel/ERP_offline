@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getApiBaseUrl, resolveBackendPort } from "@/lib/api/config";
+import { getApiBaseUrl, resolveAppSecret, resolveBackendPort } from "@/lib/api/config";
 
 const HEALTH_TIMEOUT_MS = 90000;
 const RETRY_INTERVAL_MS = 400;
@@ -23,6 +23,8 @@ export function useBackendStatus(): BackendStatus {
       // Discover the real port (the backend may have fallen back to 3001+ if
       // another program holds 3000). Repeated until the backend is reachable.
       await resolveBackendPort();
+      // Resolve the per-install app secret the shell guards the backend with.
+      await resolveAppSecret();
       try {
         const res = await fetch(`${getApiBaseUrl()}/health`, {
           method: "GET",

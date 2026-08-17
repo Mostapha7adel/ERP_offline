@@ -11,6 +11,109 @@ const DEFAULT_PORT: u16 = 3000;
 /// The port the backend actually bound, discovered after it starts. 0 = unknown.
 static BACKEND_PORT: AtomicU16 = AtomicU16::new(0);
 
+/// Per-install app secret required by the backend on every /api/v1 request.
+/// Generated once and persisted, so it survives restarts and upgrades. Loaded
+/// lazily on first access.
+static APP_SECRET: Mutex<Option<String>> = Mutex::new(None);
+
+/// File the app secret is persisted in (inside the user data dir).
+fn app_secret_file_path() -> std::path::PathBuf {
+    std::path::Path::new(&data_dir()).join("app-secret")
+}
+
+/// Generate a fresh random app secret (32 bytes, hex-encoded).
+fn generate_app_secret() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let mut bytes = [0u8; 32];
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    // Simple PRNG seeded from the clock + a stack address; good enough to
+    // produce a unique, unguessable secret per installation.
+    let mut seed = now as u64 ^ ((now >> 32) as u64);
+    seed ^= (&seed as *const u64 as u64).rotate_left(17);
+    for byte in bytes.iter_mut() {
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        *byte = ((seed >> 33) & 0xFF) as u8;
+    }
+    let mut hex = String::with_capacity(64);
+    for b in bytes {
+        hex.push_str(&format!("{b:02x}"));
+    }
+    hex
+}
+
+/// Read the persisted app secret, or create + persist a fresh one.
+fn load_or_create_app_secret() -> String {
+    let path = app_secret_file_path();
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        let trimmed = content.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    let secret = generate_app_secret();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(&path, &secret);
+    secret
+}
+
+/// The per-install app secret, cached after first load.
+fn app_secret() -> String {
+    let mut guard = APP_SECRET.lock().unwrap();
+    if let Some(existing) = guard.as_ref() {
+        return existing.clone();
+    }
+    let secret = load_or_create_app_secret();
+    *guard = Some(secret.clone());
+    secret
+}
+
+/// Report the per-install app secret, for the frontend. Exposed as a Tauri
+/// command so the webview can attach it as `x-app-token` to every API call.
+#[tauri::command]
+pub fn backend_app_secret() -> String {
+    app_secret()
+}
+
+/// Check for a newer release and report it. Returns an object describing the
+/// available version (if any) and its download URL. The frontend decides
+/// whether/where to prompt the user.
+#[tauri::command]
+pub async fn check_for_updates(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    match updater.check().await {
+        Ok(Some(update)) => Ok(serde_json::json!({
+            "available": true,
+            "version": update.version,
+            "body": update.body,
+            "date": update.date.map(|d| d.to_string()),
+            "downloadUrl": update.download_url.to_string(),
+        })),
+        Ok(None) => Ok(serde_json::json!({ "available": false })),
+        Err(err) => Err(err.to_string()),
+    }
+}
+
+/// Download and install the latest release, if one is available. Runs the
+/// default installer flow (NSIS on Windows). Returns the new version on success.
+#[tauri::command]
+pub async fn install_update(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "No update available".to_string())?;
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(update.version)
+}
+
 /// File the backend writes after binding (see backend/src/server.ts). Reading it
 /// lets us learn the port even before the first /health probe succeeds.
 fn backend_port_file_path() -> std::path::PathBuf {
@@ -342,6 +445,10 @@ pub fn spawn_backend(app: AppHandle) {
         // Tell the backend who spawned it. It echoes this back in /health so
         // future launches can tell a fresh backend from an old leftover one.
         cmd.env("LEDGERFLOW_VERSION", &version);
+
+        // Pass the per-install app secret; the backend rejects /api/v1 calls
+        // (except the open discovery/join endpoints) that lack it.
+        cmd.env("LEDGERFLOW_APP_SECRET", &app_secret());
 
         // On Windows the backend is a console executable; without this flag Windows
         // opens a separate console window next to the app window. Tell Windows to

@@ -11,6 +11,7 @@ const NETWORK_HOST_KEY = "ledgerflow:network:host";
 const NETWORK_DEVICE_ID_KEY = "ledgerflow:network:deviceId";
 const NETWORK_DEVICE_NAME_KEY = "ledgerflow:network:deviceName";
 const NETWORK_TOKEN_KEY = "ledgerflow:network:token";
+const NETWORK_APP_SECRET_KEY = "ledgerflow:network:appSecret";
 
 export type NetworkMode = "standalone" | "client";
 
@@ -25,6 +26,8 @@ export interface DeviceConfig {
   deviceName?: string;
   /** Device token issued after joining a workspace. */
   token?: string;
+  /** Host's per-install app secret (received at join). Sent as `x-app-token`. */
+  appSecret?: string;
 }
 
 function read(key: string): string | null {
@@ -51,6 +54,7 @@ export function getDeviceConfig(): DeviceConfig {
     deviceId: read(NETWORK_DEVICE_ID_KEY) ?? undefined,
     deviceName: read(NETWORK_DEVICE_NAME_KEY) ?? undefined,
     token: read(NETWORK_TOKEN_KEY) ?? undefined,
+    appSecret: read(NETWORK_APP_SECRET_KEY) ?? undefined,
   };
 }
 
@@ -61,6 +65,7 @@ export function saveDeviceConfig(patch: Partial<DeviceConfig>): DeviceConfig {
   write(NETWORK_DEVICE_ID_KEY, next.deviceId ?? null);
   write(NETWORK_DEVICE_NAME_KEY, next.deviceName ?? null);
   write(NETWORK_TOKEN_KEY, next.token ?? null);
+  write(NETWORK_APP_SECRET_KEY, next.appSecret ?? null);
   return next;
 }
 
@@ -69,6 +74,7 @@ export function clearDeviceConfig(): DeviceConfig {
   write(NETWORK_MODE_KEY, "standalone");
   write(NETWORK_HOST_KEY, null);
   write(NETWORK_TOKEN_KEY, null);
+  write(NETWORK_APP_SECRET_KEY, null);
   return {
     mode: "standalone",
     deviceId: getDeviceConfig().deviceId,
@@ -146,6 +152,39 @@ export async function resolveBackendPort(): Promise<number> {
   }
   setBackendPort(DEFAULT_API_PORT);
   return DEFAULT_API_PORT;
+}
+
+// ---- Per-install app secret ----
+// The Tauri shell generates one secret per installation and guards the backend
+// with it. The webview resolves it at startup and sends it as `x-app-token` on
+// every /api/v1 call; a LAN client instead uses the host's secret it received
+// at join time (stored in device config).
+
+let appSecret: string | null = null;
+
+/** The app secret used for the current device (host secret in client mode). */
+export function getAppSecret(): string | null {
+  const cfg = getDeviceConfig();
+  if (cfg.mode === "client" && cfg.appSecret) return cfg.appSecret;
+  return appSecret;
+}
+
+/**
+ * Resolve the local app secret from the Tauri shell. In a plain browser (dev
+ * mode) there is none, which is fine: the dev backend runs without a secret.
+ * Safe to call repeatedly.
+ */
+export async function resolveAppSecret(): Promise<string | null> {
+  try {
+    if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+      const { invoke } = await import("@tauri-apps/api/core");
+      appSecret = await invoke<string>("backend_app_secret");
+      return appSecret;
+    }
+  } catch {
+    // not running inside Tauri — no secret in dev mode
+  }
+  return appSecret;
 }
 
 export const ACCESS_TOKEN_KEY = "ledgerflow:access-token";

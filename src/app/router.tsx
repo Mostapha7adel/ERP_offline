@@ -7,6 +7,7 @@ import { StartupGate } from "@/app/startup-gate";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import { DeviceHeartbeat } from "@/features/network/use-device-heartbeat";
 import { RealtimeSync } from "@/features/network/realtime-sync";
+import { UpdateChecker } from "@/features/updates/update-checker";
 import { NotFound } from "@/features/not-found";
 import { LoginPage } from "@/features/auth/login";
 import { initAuthTokenHandling } from "@/stores/auth-store";
@@ -105,6 +106,7 @@ export function App() {
     <StartupGate>
       <DeviceHeartbeat />
       <RealtimeSync />
+      <UpdateChecker />
       <Providers>
         <RouterProvider router={router} />
       </Providers>

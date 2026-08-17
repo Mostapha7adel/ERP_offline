@@ -1,6 +1,6 @@
 import {
   Wallet, TrendingUp, Receipt, CircleDollarSign,
-  ArrowDownRight, ArrowUpRight,
+  ArrowDownRight, ArrowUpRight, Package, Clock,
 } from "lucide-react";
 import { useSimulatedLoading } from "@/shared/lib/use-simulated-loading";
 import { useProductsStore } from "@/stores/products-store";
@@ -15,6 +15,7 @@ import {
   buildTopProducts,
   buildWeeklySales,
   buildOutstanding,
+  buildAging,
   latestMonthTotals,
   monthOverMonth,
   weeklySalesTrend,
@@ -64,6 +65,21 @@ export function DashboardPage() {
   const topProducts = buildTopProducts(invoices, products);
   const weeklySales = buildWeeklySales(invoices);
   const outstanding = buildOutstanding(invoices);
+  const aging = buildAging(invoices);
+
+  // Inventory value: on-hand quantity × cost price, from product + stock data.
+  const inventoryValue = products.reduce((sum, product) => {
+    const onHand = inventory
+      .filter((i) => i.productId === product.id)
+      .reduce((s, i) => s + i.quantity, 0);
+    return sum + onHand * product.costPrice;
+  }, 0);
+
+  // Open invoices: non-voided, non-fully-paid documents (due from customers or
+  // due to suppliers), excluding fully paid and cancelled ones.
+  const openInvoices = invoices.filter((inv) => inv.status !== "cancelled" && inv.total - inv.paid > 0);
+  const openReceivables = outstanding.customers;
+  const openPayables = outstanding.suppliers;
 
   const recentInvoices = [...invoices]
     .sort((a, b) => (a.issueDate < b.issueDate ? 1 : -1))
@@ -135,6 +151,24 @@ export function DashboardPage() {
           footer={t("${c} from customers, ${s} to suppliers", "${c} من العملاء، ${s} للموردين")
             .replace("${c}", formatCurrency(outstanding.customers))
             .replace("${s}", formatCurrency(outstanding.suppliers))}
+        />
+        <StatCard
+          index={4}
+          label={t("Inventory value", "قيمة المخزون")}
+          value={formatCurrency(inventoryValue)}
+          icon={Package}
+          iconClassName="bg-info/10 text-info"
+          footer={t("${n} products in stock", "${n} منتج بالمخزون").replace("${n}", String(products.length))}
+        />
+        <StatCard
+          index={5}
+          label={t("Open invoices", "فواتير مفتوحة")}
+          value={String(openInvoices.length)}
+          icon={Clock}
+          iconClassName="bg-warning/10 text-warning"
+          footer={t("${c} receivable · ${s} payable", "${c} مستحق لنا · ${s} مستحق علينا")
+            .replace("${c}", formatCompact(openReceivables))
+            .replace("${s}", formatCompact(openPayables))}
         />
       </div>
 
@@ -333,6 +367,39 @@ export function DashboardPage() {
                   </div>
                 ))
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>{t("Aging of receivables", "أعمار الذمم")}</CardTitle>
+              <p className="text-sm text-muted-foreground">{t("Outstanding balances by age", "الأرصدة المستحقة حسب العمر")}</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {aging.map((bucket) => {
+                const total = bucket.receivables + bucket.payables;
+                return (
+                  <div key={bucket.key}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full" style={{ background: bucket.color }} />
+                        <span className="text-muted-foreground">{bucket.label}</span>
+                      </span>
+                      <span className="font-medium tabular-nums">{formatCurrency(total)}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full" style={{ background: bucket.color }} />
+                    </div>
+                    {total > 0 ? (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {t("${c} receivable · ${s} payable", "${c} مستحق لنا · ${s} مستحق علينا")
+                          .replace("${c}", formatCurrency(bucket.receivables))
+                          .replace("${s}", formatCurrency(bucket.payables))}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </div>
