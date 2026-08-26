@@ -84,10 +84,12 @@ export function authApi() {
       return api.get<Principal>("/auth/me");
     },
     refresh(refreshToken: string): Promise<LoginResult> {
-      return api.post<LoginResult>("/auth/refresh", { refreshToken });
+      // skipAuthRefresh is critical: without it a 401 here (expired refresh
+      // token) would re-enter the refresh flow and deadlock on itself.
+      return api.post<LoginResult>("/auth/refresh", { refreshToken }, { skipAuthRefresh: true });
     },
     logout(refreshToken: string): Promise<{ success: boolean }> {
-      return api.post<{ success: boolean }>("/auth/logout", { refreshToken });
+      return api.post<{ success: boolean }>("/auth/logout", { refreshToken }, { skipAuthRefresh: true });
     },
     changePassword(
       newPassword: string,

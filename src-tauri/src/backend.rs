@@ -424,8 +424,14 @@ pub fn spawn_backend(app: AppHandle) {
     // Spawn the sidecar and wait for a real /health response. Retry a few
     // times: the first boot runs migrations + seed and can be slow, and a
     // transient port conflict right after boot is worth one clean retry.
+    //
+    // Spawn failures are retried too (not fatal): right after an install,
+    // antivirus (Windows Defender) often locks the freshly-written sidecar
+    // executable for several seconds while scanning it, which makes the very
+    // first spawn fail with os error 32. Waiting and re-spawning succeeds
+    // once the scan releases the file.
     let mut spawned_child: Option<Child> = None;
-    for attempt in 1..=3 {
+    for attempt in 1..=6 {
         let mut cmd = Command::new(&backend_exe);
         cmd.stdin(Stdio::null());
         if let Ok(file) = &out_log {
@@ -465,7 +471,11 @@ pub fn spawn_backend(app: AppHandle) {
             Err(err) => {
                 log_line(&format!("spawn failed (attempt {attempt}): {err}"));
                 process_log_line(&format!("spawn failed (attempt {attempt}): {err}"));
-                return;
+                // The executable may be temporarily locked (antivirus scan right
+                // after an install). Back off and try again instead of leaving
+                // the app without a backend.
+                std::thread::sleep(Duration::from_millis(2500));
+                continue;
             }
         };
         log_line(&format!("spawned (attempt {attempt})"));

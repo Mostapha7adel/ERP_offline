@@ -163,6 +163,18 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
     });
   }, [status, validateSession]);
 
+  // Safety net: if session validation ever wedges (network stack hiccup, a bug
+  // in the refresh flow, …) the "Checking session…" overlay must not trap the
+  // user forever. After 25s release the gate — worst case the user signs in
+  // again; a late validation result still applies normally.
+  useEffect(() => {
+    if (status !== "ready" || !isSessionValidating) return;
+    const timer = window.setTimeout(() => {
+      useAuthStore.setState({ isSessionValidating: false });
+    }, 25_000);
+    return () => window.clearTimeout(timer);
+  }, [status, isSessionValidating]);
+
   return (
     <>
       <BackendScreen status={status} />

@@ -97,6 +97,11 @@ function networkErrorMessage(): string {
 export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   headers?: Record<string, string>;
+  /** Never trigger the silent-refresh flow on a 401. MUST be set on the
+   *  /auth/refresh and /auth/logout calls themselves, otherwise an expired
+   *  refresh token deadlocks: the refresh request would wait on its own
+   *  in-flight refresh forever (the "Checking session…" hang). */
+  skipAuthRefresh?: boolean;
 }
 
 export interface ApiClientOptions {
@@ -199,8 +204,9 @@ async function request<T>(
     // A 401 on an unauthenticated request (e.g. a failed login attempt) must
     // surface the server's real error message — not the "session expired"
     // fallthrough meant for stale-token requests. Only attempt a refresh when
-    // we actually sent an access token.
-    if (!token) {
+    // we actually sent an access token. Refresh/logout calls opt out entirely
+    // via skipAuthRefresh so they can never wait on their own refresh.
+    if (!token || options.skipAuthRefresh) {
       const raw: unknown = await response.json().catch(() => undefined);
       const envelope = raw as ApiEnvelope<T>;
       const error = envelope?.error;
@@ -288,7 +294,7 @@ async function requestEnvelope<T>(
   }
 
   if (response.status === 401) {
-    if (!token) {
+    if (!token || options.skipAuthRefresh) {
       const raw: unknown = await response.json().catch(() => undefined);
       const envelope = raw as ApiEnvelope<T>;
       const error = envelope?.error;
