@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bug, Trash2, X, CheckCircle2 } from "lucide-react";
+import { Bug, Trash2, X, CheckCircle2, Copy, Check } from "lucide-react";
 import { useDebugLogStore } from "@/stores/debug-log-store";
 import { setRequestLogger } from "@/lib/api/client";
 import { useT } from "@/shared/lib/i18n";
@@ -42,6 +42,7 @@ function routeToApiPrefix(pathname: string): string | null {
 export function DebugConsole() {
   const { t } = useT();
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const entries = useDebugLogStore((s) => s.entries);
   const clear = useDebugLogStore((s) => s.clear);
   const addEntry = useDebugLogStore((s) => s.addEntry);
@@ -91,6 +92,24 @@ export function DebugConsole() {
 
   const totalErrors = entries.filter((e) => e.level === "error").length;
 
+  const copyErrors = () => {
+    const lines = entries
+      .filter((e) => e.level === "error" || e.level === "warn")
+      .map((e) => {
+        const time = new Date(e.timestamp).toLocaleTimeString("en-GB", {
+          hour12: false,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+        return `[${time}] ${e.method} ${e.path} → ${e.status ?? "ERR"}${e.error ? " — " + e.error : ""}`;
+      });
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <>
       <button
@@ -121,6 +140,13 @@ export function DebugConsole() {
             <span className="ms-auto text-[10px] text-muted-foreground">
               {totalErrors} {t("total", "إجمالي")}
             </span>
+            <button
+              onClick={copyErrors}
+              className="inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+              title={t("Copy errors", "نسخ الأخطاء")}
+            >
+              {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+            </button>
             <button
               onClick={clear}
               className="inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
