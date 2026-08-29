@@ -826,7 +826,7 @@ export function auditApi() {
   return {
     async list(): Promise<AuditLog[]> {
       const res = await api.getList<Parameters<typeof mapAuditLog>[0]>(
-        "/audit-logs?limit=200",
+        "/audit-logs?limit=100",
       );
       return res.data.map(mapAuditLog);
     },
