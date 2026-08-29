@@ -9,6 +9,7 @@ import { NotificationBell } from "@/shared/components/layout/notification-center
 import { ThemeToggle } from "@/shared/components/layout/theme-toggle";
 import { LocaleToggle } from "@/shared/components/layout/locale-toggle";
 import { UserMenu } from "@/shared/components/layout/user-menu";
+import { DebugConsole } from "@/shared/components/layout/debug-console";
 import { useT } from "@/shared/lib/i18n";
 
 function GlobalSearchButton() {
@@ -85,6 +86,7 @@ export function TopNav() {
         </div>
         <div className="ms-2 flex items-center gap-1">
           <RefreshButton />
+          <DebugConsole />
           <LocaleToggle />
           <ThemeToggle />
           <NotificationBell />

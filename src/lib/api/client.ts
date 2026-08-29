@@ -116,6 +116,23 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   unauthorizedHandler = handler;
 }
 
+// ---- Request logger (drives the in-app Debug Console) ----
+
+export interface RequestLogInfo {
+  method: string;
+  path: string;
+  status: number | null;
+  duration: number;
+  error?: string;
+  responsePreview?: string;
+}
+
+let requestLogger: ((info: RequestLogInfo) => void) | null = null;
+
+export function setRequestLogger(logger: ((info: RequestLogInfo) => void) | null): void {
+  requestLogger = logger;
+}
+
 /**
  * Refresh callback wired by the app. When set, a 401 triggers a token
  * refresh before failing; if the refresh fails, the session is cleared.
@@ -189,6 +206,7 @@ async function request<T>(
     ...options.headers,
   };
 
+  const t0 = performance.now();
   let response: Response;
   try {
     response = await fetch(buildUrl(path, options.query), {
@@ -196,7 +214,15 @@ async function request<T>(
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-  } catch {
+  } catch (err) {
+    const duration = Math.round(performance.now() - t0);
+    requestLogger?.({
+      method,
+      path,
+      status: null,
+      duration,
+      error: err instanceof Error ? err.message : "Network error",
+    });
     throw new ApiError(0, "NETWORK_ERROR", networkErrorMessage());
   }
 
@@ -210,6 +236,14 @@ async function request<T>(
       const raw: unknown = await response.json().catch(() => undefined);
       const envelope = raw as ApiEnvelope<T>;
       const error = envelope?.error;
+      const duration = Math.round(performance.now() - t0);
+      requestLogger?.({
+        method,
+        path,
+        status: 401,
+        duration,
+        error: error?.message ?? "Unauthorized",
+      });
       throw new ApiError(
         response.status,
         error?.code ?? "UNAUTHORIZED",
@@ -221,6 +255,8 @@ async function request<T>(
     // means the token is genuinely bad (or the endpoint is misconfigured),
     // so stop instead of looping refresh→retry forever.
     if (retried >= 1) {
+      const duration = Math.round(performance.now() - t0);
+      requestLogger?.({ method, path, status: 401, duration, error: "Session expired (retry exhausted)" });
       clearTokens();
       unauthorizedHandler?.();
       throw new ApiError(401, "UNAUTHORIZED", "Your session has expired. Please sign in again.");
@@ -229,6 +265,8 @@ async function request<T>(
     if (refreshed) {
       return request<T>(method, path, body, options, retried + 1);
     }
+    const duration = Math.round(performance.now() - t0);
+    requestLogger?.({ method, path, status: 401, duration, error: "Refresh failed" });
     clearTokens();
     unauthorizedHandler?.();
     throw new ApiError(401, "UNAUTHORIZED", "Your session has expired. Please sign in again.");
@@ -239,6 +277,14 @@ async function request<T>(
 
   if (!response.ok || !envelope?.success) {
     const error = envelope?.error;
+    const duration = Math.round(performance.now() - t0);
+    requestLogger?.({
+      method,
+      path,
+      status: response.status,
+      duration,
+      error: error?.message ?? `Request failed (${response.status})`,
+    });
     throw new ApiError(
       response.status,
       error?.code ?? "REQUEST_ERROR",
@@ -247,6 +293,8 @@ async function request<T>(
     );
   }
 
+  const duration = Math.round(performance.now() - t0);
+  requestLogger?.({ method, path, status: response.status, duration });
   return envelope.data as T;
 }
 
@@ -282,6 +330,7 @@ async function requestEnvelope<T>(
     ...options.headers,
   };
 
+  const t0 = performance.now();
   let response: Response;
   try {
     response = await fetch(buildUrl(path, options.query), {
@@ -289,7 +338,15 @@ async function requestEnvelope<T>(
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-  } catch {
+  } catch (err) {
+    const duration = Math.round(performance.now() - t0);
+    requestLogger?.({
+      method,
+      path,
+      status: null,
+      duration,
+      error: err instanceof Error ? err.message : "Network error",
+    });
     throw new ApiError(0, "NETWORK_ERROR", networkErrorMessage());
   }
 
@@ -298,6 +355,8 @@ async function requestEnvelope<T>(
       const raw: unknown = await response.json().catch(() => undefined);
       const envelope = raw as ApiEnvelope<T>;
       const error = envelope?.error;
+      const duration = Math.round(performance.now() - t0);
+      requestLogger?.({ method, path, status: 401, duration, error: error?.message ?? "Unauthorized" });
       throw new ApiError(
         response.status,
         error?.code ?? "UNAUTHORIZED",
@@ -306,6 +365,8 @@ async function requestEnvelope<T>(
       );
     }
     if (retried >= 1) {
+      const duration = Math.round(performance.now() - t0);
+      requestLogger?.({ method, path, status: 401, duration, error: "Session expired (retry exhausted)" });
       clearTokens();
       unauthorizedHandler?.();
       throw new ApiError(401, "UNAUTHORIZED", "Your session has expired. Please sign in again.");
@@ -314,6 +375,8 @@ async function requestEnvelope<T>(
     if (refreshed) {
       return requestEnvelope<T>(method, path, body, options, retried + 1);
     }
+    const duration = Math.round(performance.now() - t0);
+    requestLogger?.({ method, path, status: 401, duration, error: "Refresh failed" });
     clearTokens();
     unauthorizedHandler?.();
     throw new ApiError(401, "UNAUTHORIZED", "Your session has expired. Please sign in again.");
@@ -324,6 +387,14 @@ async function requestEnvelope<T>(
 
   if (!response.ok || !envelope?.success) {
     const error = envelope?.error;
+    const duration = Math.round(performance.now() - t0);
+    requestLogger?.({
+      method,
+      path,
+      status: response.status,
+      duration,
+      error: error?.message ?? `Request failed (${response.status})`,
+    });
     throw new ApiError(
       response.status,
       error?.code ?? "REQUEST_ERROR",
@@ -332,6 +403,8 @@ async function requestEnvelope<T>(
     );
   }
 
+  const duration = Math.round(performance.now() - t0);
+  requestLogger?.({ method, path, status: response.status, duration });
   return {
     data: envelope.data as T,
     meta: (envelope as { meta?: PaginationMeta }).meta,
@@ -366,14 +439,19 @@ export const api = {
       ...(getAppSecret() ? { "x-app-token": getAppSecret() as string } : {}),
       ...options.headers,
     };
+    const t0 = performance.now();
     let response: Response;
     try {
       response = await fetch(buildUrl(path, options.query), { method: "GET", headers });
-    } catch {
+    } catch (err) {
+      const duration = Math.round(performance.now() - t0);
+      requestLogger?.({ method: "GET", path, status: null, duration, error: err instanceof Error ? err.message : "Network error" });
       throw new ApiError(0, "NETWORK_ERROR", networkErrorMessage());
     }
     if (response.status === 401) {
       if (retried >= 1 || !token) {
+        const duration = Math.round(performance.now() - t0);
+        requestLogger?.({ method: "GET", path, status: 401, duration, error: "Unauthorized" });
         clearTokens();
         unauthorizedHandler?.();
         throw new ApiError(401, "UNAUTHORIZED", "Your session has expired. Please sign in again.");
@@ -382,13 +460,19 @@ export const api = {
       if (refreshed) {
         return api.getRaw<T>(path, options, retried + 1);
       }
+      const duration = Math.round(performance.now() - t0);
+      requestLogger?.({ method: "GET", path, status: 401, duration, error: "Refresh failed" });
       clearTokens();
       unauthorizedHandler?.();
       throw new ApiError(401, "UNAUTHORIZED", "Your session has expired. Please sign in again.");
     }
     if (!response.ok) {
+      const duration = Math.round(performance.now() - t0);
+      requestLogger?.({ method: "GET", path, status: response.status, duration, error: `Request failed (${response.status})` });
       throw new ApiError(response.status, "REQUEST_ERROR", `Request failed (${response.status})`);
     }
+    const duration = Math.round(performance.now() - t0);
+    requestLogger?.({ method: "GET", path, status: response.status, duration });
     return (await response.json()) as T;
   },
 };
