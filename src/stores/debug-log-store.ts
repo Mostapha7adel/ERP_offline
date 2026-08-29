@@ -11,18 +11,12 @@ export interface LogEntry {
   duration: number | null;
   level: LogLevel;
   error?: string;
-  /** Truncated response body summary (first 200 chars). */
-  responsePreview?: string;
 }
 
 interface DebugLogState {
   entries: LogEntry[];
-  filter: string;
-  levelFilter: LogLevel | "all";
   maxEntries: number;
   addEntry: (entry: Omit<LogEntry, "id">) => void;
-  setFilter: (filter: string) => void;
-  setLevelFilter: (level: LogLevel | "all") => void;
   clear: () => void;
 }
 
@@ -30,9 +24,7 @@ let nextId = 1;
 
 export const useDebugLogStore = create<DebugLogState>()((set) => ({
   entries: [],
-  filter: "",
-  levelFilter: "all",
-  maxEntries: 300,
+  maxEntries: 200,
 
   addEntry: (entry) =>
     set((state) => ({
@@ -42,7 +34,5 @@ export const useDebugLogStore = create<DebugLogState>()((set) => ({
       ].slice(0, state.maxEntries),
     })),
 
-  setFilter: (filter) => set({ filter }),
-  setLevelFilter: (levelFilter) => set({ levelFilter }),
   clear: () => set({ entries: [] }),
 }));
