@@ -36,6 +36,11 @@ import { registerTaxReportController } from "./reports/tax-report.controller.js"
 import { registerLoyaltyController } from "./loyalty/loyalty.controller.js";
 import { registerBudgetsController } from "./budgets/budget.controller.js";
 import { registerLandedCostsController } from "./landed-costs/landed-cost.controller.js";
+import { registerStockTransfersController } from "./stock-transfers/stock-transfer.controller.js";
+import { registerSerialNumbersController } from "./serial-numbers/serial-number.controller.js";
+import { registerWarrantiesController } from "./warranties/warranty.controller.js";
+import { registerProfitReportController } from "./reports/profit-report.controller.js";
+import { registerPaymentGatewaysController } from "./payment-gateways/payment-gateway.controller.js";
 
 /**
  * Feature modules are registered under the `/api/v1` prefix.
@@ -86,6 +91,11 @@ export async function registerModules(app: FastifyInstance): Promise<void> {
       registerPriceListsController(scoped);
       registerDeliveryNotesController(scoped);
       registerBarcodeController(scoped);
+      registerStockTransfersController(scoped);
+      registerSerialNumbersController(scoped);
+      registerWarrantiesController(scoped);
+      registerProfitReportController(scoped);
+      registerPaymentGatewaysController(scoped);
     },
     { prefix: "/api/v1" },
   );

@@ -51,6 +51,11 @@ import {
   BudgetsPage,
   LandedCostsPage,
   BarcodesPage,
+  StockTransfersPage,
+  SerialNumbersPage,
+  WarrantiesPage,
+  ProfitReportPage,
+  PaymentGatewaysPage,
 } from "@/features";
 
 /**
@@ -99,6 +104,11 @@ const router = createHashRouter([
       { path: "budgets", element: <BudgetsPage /> },
       { path: "landed-costs", element: <LandedCostsPage /> },
       { path: "barcodes", element: <BarcodesPage /> },
+      { path: "stock-transfers", element: <StockTransfersPage /> },
+      { path: "serial-numbers", element: <SerialNumbersPage /> },
+      { path: "warranties", element: <WarrantiesPage /> },
+      { path: "profit-report", element: <ProfitReportPage /> },
+      { path: "payment-gateways", element: <PaymentGatewaysPage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "users", element: <SuperAdminOnly><UsersPage /></SuperAdminOnly> },
       { path: "profile", element: <ProfilePage /> },

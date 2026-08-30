@@ -35,6 +35,7 @@ const GROUP_ORDER = [
   "dashboard", "customers", "suppliers", "products", "warehouses",
   "inventory", "sales", "purchases", "quotes", "recurring", "treasury", "accounting",
   "tax-reports", "loyalty", "budgets", "landed-costs", "barcodes",
+  "stock-transfers", "serial-numbers", "warranties", "payment-gateways",
   "reports", "users", "roles", "settings", "backup",
 ];
 
@@ -56,6 +57,10 @@ const GROUP_LABELS: Record<string, string> = {
   budgets: "Budgets",
   "landed-costs": "Landed Costs",
   barcodes: "Barcodes",
+  "stock-transfers": "Stock Transfers",
+  "serial-numbers": "Serial Numbers",
+  warranties: "Warranties",
+  "payment-gateways": "Payment Gateways",
   reports: "Reports",
   users: "Users",
   roles: "Roles",
@@ -81,6 +86,10 @@ const GROUP_LABELS_AR: Record<string, string> = {
   budgets: "الميزانيات",
   "landed-costs": "تكاليف الشحن",
   barcodes: "الباركود",
+  "stock-transfers": "نقل بين المخازن",
+  "serial-numbers": "الأرقام التسلسلية",
+  warranties: "الضمانات",
+  "payment-gateways": "بوابات الدفع",
   reports: "التقارير",
   users: "المستخدمون",
   roles: "الأدوار",
@@ -181,6 +190,16 @@ const PERMISSION_LABELS_AR: Record<PermissionKey, string> = {
   "barcodes.view": "عرض الباركود",
   "barcodes.create": "إنشاء باركود",
   "barcodes.delete": "حذف الباركود",
+  "stock-transfers.view": "عرض تحويلات المخزون",
+  "stock-transfers.create": "إنشاء تحويل مخزون",
+  "stock-transfers.update": "تعديل تحويلات المخزون",
+  "serial-numbers.view": "عرض الأرقام التسلسلية",
+  "serial-numbers.create": "إنشاء أرقام تسلسلية",
+  "warranties.view": "عرض الضمانات",
+  "warranties.create": "إنشاء ضمانات",
+  "warranties.claim": "المطالبة بالضمان",
+  "payment-gateways.view": "عرض بوابات الدفع",
+  "payment-gateways.create": "إدارة بوابات الدفع",
 };
 
 export function ProfilePage() {

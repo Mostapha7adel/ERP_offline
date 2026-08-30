@@ -229,6 +229,11 @@ model Company {
    landedCosts       LandedCost[]
   priceLists        PriceList[]
   deliveryNotes     DeliveryNote[]
+  stockTransfers    StockTransfer[]
+  serialNumbers     SerialNumber[]
+  warranties        Warranty[]
+  paymentGatewayConfigs      PaymentGatewayConfig[]
+  paymentGatewayTransactions PaymentGatewayTransaction[]
 
   @@index([name])
 }
@@ -384,6 +389,7 @@ model Party {
    paymentVouchers  PaymentVoucher[]
   loyaltyAccount   LoyaltyAccount?       @relation("LoyaltyParty")
   deliveryNotes    DeliveryNote[]        @relation("DeliveryNoteParty")
+  warranties       Warranty[]
 
   @@unique([companyId, code])
   @@index([companyId, type, status])
@@ -439,6 +445,7 @@ model Product {
   imageUrl      String?
   trackStock    Boolean       @default(false)
   reorderLevel  Float?
+  warrantyPeriodDays Int?
   status        ProductStatus @default(draft)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -459,6 +466,9 @@ model Product {
   purchaseReturnLines PurchaseReturnLine[]
   priceListItems     PriceListItem[]
   deliveryNoteLines  DeliveryNoteLine[]
+  serialNumbers      SerialNumber[]
+  warranties         Warranty[]
+  stockTransferLines StockTransferLine[]
 
   @@unique([companyId, sku])
   @@index([companyId, barcode])
@@ -498,6 +508,9 @@ model Warehouse {
    salesReturns   SalesReturn[]
   purchaseReturns PurchaseReturn[]
   deliveryNotes   DeliveryNote[]
+  stockTransfersFrom StockTransfer[] @relation("StockTransferFrom")
+  stockTransfersTo   StockTransfer[] @relation("StockTransferTo")
+  serialNumbers      SerialNumber[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -624,6 +637,9 @@ model Invoice {
   purchaseReturns PurchaseReturn[]
   landedCosts     LandedCost[]
   deliveryNotes   DeliveryNote[]
+  serialNumbers   SerialNumber[]
+  warranties      Warranty[]
+  paymentGatewayTransactions PaymentGatewayTransaction[]
 
   quoteId String? @unique
   purchaseOrderId String?
@@ -1681,6 +1697,172 @@ model DeliveryNoteLine {
 // -----------------------------------------------------------------------------
 // Audit trail (append-only)
 // -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Stock Transfers (multi-warehouse)
+// -----------------------------------------------------------------------------
+
+enum StockTransferStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+model StockTransfer {
+  id              String               @id @default(uuid())
+  companyId       String
+  fromWarehouseId String
+  toWarehouseId   String
+  status          StockTransferStatus  @default(DRAFT)
+  date            DateTime
+  reference       String?
+  notes           String?
+  createdBy       String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  deletedAt       DateTime?
+
+  company      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fromWarehouse Warehouse            @relation("StockTransferFrom", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
+  toWarehouse   Warehouse            @relation("StockTransferTo", fields: [toWarehouseId], references: [id], onDelete: Restrict)
+  lines         StockTransferLine[]
+
+  @@unique([companyId, reference])
+  @@index([companyId, status])
+  @@index([companyId, date])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+}
+
+model StockTransferLine {
+  id         String  @id @default(uuid())
+  transferId String
+  productId  String
+  quantity   Float
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product  Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([transferId])
+  @@index([productId])
+}
+
+// -----------------------------------------------------------------------------
+// Serial Numbers
+// -----------------------------------------------------------------------------
+
+enum SerialNumberStatus {
+  IN_STOCK
+  SOLD
+  RETURNED
+  WARRANTY
+}
+
+model SerialNumber {
+  id           String             @id @default(uuid())
+  companyId    String
+  productId    String
+  serialNumber String
+  status       SerialNumberStatus @default(IN_STOCK)
+  warehouseId  String
+  invoiceId    String?
+  createdAt    DateTime           @default(now())
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  invoice   Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  warranties Warranty[]
+
+  @@unique([companyId, serialNumber])
+  @@index([companyId, productId])
+  @@index([companyId, status])
+  @@index([companyId, warehouseId])
+  @@index([invoiceId])
+}
+
+// -----------------------------------------------------------------------------
+// Warranties
+// -----------------------------------------------------------------------------
+
+enum WarrantyStatus {
+  ACTIVE
+  EXPIRED
+  CLAIMED
+}
+
+model Warranty {
+  id             String          @id @default(uuid())
+  companyId      String
+  productId      String
+  serialNumberId String?
+  customerId     String
+  warrantyNumber String
+  startDate      DateTime
+  endDate        DateTime
+  status         WarrantyStatus  @default(ACTIVE)
+  invoiceId      String?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  serialNumber SerialNumber? @relation(fields: [serialNumberId], references: [id], onDelete: SetNull)
+  customer     Party         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  invoice      Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, warrantyNumber])
+  @@index([companyId, status])
+  @@index([companyId, productId])
+  @@index([companyId, customerId])
+  @@index([invoiceId])
+}
+
+// -----------------------------------------------------------------------------
+// Payment Gateways
+// -----------------------------------------------------------------------------
+
+model PaymentGatewayConfig {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String   // STRIPE / PAYPAL / FAWRY / USDT
+  isActive  Boolean  @default(true)
+  config    String?  // JSON string for API keys
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  company      Company                        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions PaymentGatewayTransaction[]
+
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+}
+
+model PaymentGatewayTransaction {
+  id              String   @id @default(uuid())
+  companyId       String
+  gatewayConfigId String
+  invoiceId       String?
+  amount          Float
+  currency        String   @default("EGP")
+  status          String   @default("PENDING") // PENDING / COMPLETED / FAILED / REFUNDED
+  externalRef     String?
+  metadata        String?  // JSON
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  gatewayConfig PaymentGatewayConfig @relation(fields: [gatewayConfigId], references: [id], onDelete: Cascade)
+  invoice       Invoice?             @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([gatewayConfigId])
+  @@index([invoiceId])
+  @@index([externalRef])
+}
 
 model AuditLog {
   id         String   @id @default(uuid())

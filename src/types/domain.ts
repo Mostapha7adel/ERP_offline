@@ -815,3 +815,117 @@ export interface BarcodeEntry {
   format: "upc-a" | "ean-13" | "code-128" | "qr";
   createdAt: ISOString;
 }
+
+// ---- Stock Transfers ----
+
+export type StockTransferStatus = "draft" | "pending" | "in_transit" | "completed" | "cancelled";
+
+export interface StockTransferLine {
+  id: ID;
+  productId: ID;
+  productName?: string;
+  sku?: string;
+  quantity: number;
+  receivedQuantity?: number;
+}
+
+export interface StockTransfer {
+  id: ID;
+  number: string;
+  fromWarehouseId: ID;
+  fromWarehouseName?: string;
+  toWarehouseId: ID;
+  toWarehouseName?: string;
+  status: StockTransferStatus;
+  transferDate: ISOString;
+  completedDate?: ISOString;
+  lines: StockTransferLine[];
+  notes?: string;
+  createdBy: ID;
+  createdAt: ISOString;
+}
+
+// ---- Serial Numbers ----
+
+export type SerialNumberStatus = "available" | "sold" | "reserved" | "returned" | "defective";
+
+export interface SerialNumber {
+  id: ID;
+  productId: ID;
+  productName?: string;
+  sku?: string;
+  serialNumber: string;
+  warehouseId?: ID;
+  warehouseName?: string;
+  status: SerialNumberStatus;
+  invoiceId?: ID;
+  invoiceNumber?: string;
+  customerName?: string;
+  soldAt?: ISOString;
+  createdAt: ISOString;
+}
+
+// ---- Warranties ----
+
+export type WarrantyStatus = "active" | "expired" | "claimed";
+
+export interface Warranty {
+  id: ID;
+  productId: ID;
+  productName?: string;
+  customerId: ID;
+  customerName?: string;
+  serialNumber?: string;
+  startDate: ISOString;
+  endDate: ISOString;
+  status: WarrantyStatus;
+  terms?: string;
+  claimDate?: ISOString;
+  claimNotes?: string;
+  createdAt: ISOString;
+}
+
+// ---- Profit Report ----
+
+export interface ProfitReportItem {
+  id: ID;
+  productId: ID;
+  productName: string;
+  sku?: string;
+  quantitySold: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin: number;
+}
+
+// ---- Payment Gateways ----
+
+export type PaymentGatewayType = "stripe" | "paypal" | "square" | "paymob" | "other";
+
+export type PaymentGatewayTransactionStatus = "pending" | "completed" | "failed" | "refunded";
+
+export interface PaymentGatewayConfig {
+  id: ID;
+  name: string;
+  type: PaymentGatewayType;
+  isActive: boolean;
+  apiKey?: string;
+  merchantId?: string;
+  sandboxMode: boolean;
+  createdAt: ISOString;
+}
+
+export interface PaymentGatewayTransaction {
+  id: ID;
+  gatewayId: ID;
+  gatewayName?: string;
+  invoiceId?: ID;
+  invoiceNumber?: string;
+  customerName?: string;
+  amount: number;
+  currency: string;
+  status: PaymentGatewayTransactionStatus;
+  reference?: string;
+  createdAt: ISOString;
+}

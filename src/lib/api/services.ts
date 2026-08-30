@@ -63,6 +63,12 @@ import type {
   Budget,
   LandedCost,
   BarcodeEntry,
+  StockTransfer,
+  SerialNumber,
+  Warranty,
+  ProfitReportItem,
+  PaymentGatewayConfig,
+  PaymentGatewayTransaction,
 } from "@/types/domain";
 
 // ---- Auth ----
@@ -1943,6 +1949,191 @@ export function barcodeApi() {
     },
     async remove(id: string): Promise<{ id: string }> {
       return api.delete<{ id: string }>(`/barcodes/${id}`);
+    },
+  };
+}
+
+// ---- Stock Transfers ----
+
+export interface StockTransferLineInput {
+  productId: string;
+  productName?: string;
+  quantity: number;
+}
+
+export interface StockTransferInput {
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  transferDate: string;
+  lines: StockTransferLineInput[];
+  notes?: string;
+}
+
+export function stockTransfersApi() {
+  return {
+    async list(): Promise<StockTransfer[]> {
+      const res = await api.getList<StockTransfer>("/stock-transfers?limit=100");
+      return res.data;
+    },
+    async get(id: string): Promise<StockTransfer> {
+      return api.get<StockTransfer>(`/stock-transfers/${id}`);
+    },
+    create(input: StockTransferInput): Promise<StockTransfer> {
+      return api.post<StockTransfer>("/stock-transfers", input);
+    },
+    update(id: string, input: Partial<StockTransferInput>): Promise<StockTransfer> {
+      return api.patch<StockTransfer>(`/stock-transfers/${id}`, input);
+    },
+    complete(id: string): Promise<StockTransfer> {
+      return api.post<StockTransfer>(`/stock-transfers/${id}/complete`, {});
+    },
+    cancel(id: string): Promise<StockTransfer> {
+      return api.post<StockTransfer>(`/stock-transfers/${id}/cancel`, {});
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/stock-transfers/${id}`);
+    },
+  };
+}
+
+// ---- Serial Numbers ----
+
+export interface SerialNumberInput {
+  productId: string;
+  serialNumber: string;
+  warehouseId?: string;
+}
+
+export interface SerialNumberBulkInput {
+  productId: string;
+  warehouseId?: string;
+  serialNumbers: string[];
+}
+
+export interface SerialNumberAssignInput {
+  serialNumberId: string;
+  invoiceId: string;
+  customerId: string;
+}
+
+export interface SerialNumberReturnInput {
+  serialNumberId: string;
+  invoiceId: string;
+}
+
+export function serialNumbersApi() {
+  return {
+    async list(query?: { status?: string; productId?: string }): Promise<SerialNumber[]> {
+      const res = await api.getList<SerialNumber>(
+        "/serial-numbers?limit=100",
+        { query: query as Record<string, string | number | boolean> | undefined },
+      );
+      return res.data;
+    },
+    create(input: SerialNumberInput): Promise<SerialNumber> {
+      return api.post<SerialNumber>("/serial-numbers", input);
+    },
+    bulkCreate(input: SerialNumberBulkInput): Promise<SerialNumber[]> {
+      return api.post<SerialNumber[]>("/serial-numbers/bulk", input);
+    },
+    assign(input: SerialNumberAssignInput): Promise<SerialNumber> {
+      return api.post<SerialNumber>(`/serial-numbers/${input.serialNumberId}/assign`, {
+        invoiceId: input.invoiceId,
+        customerId: input.customerId,
+      });
+    },
+    returnSerial(input: SerialNumberReturnInput): Promise<SerialNumber> {
+      return api.post<SerialNumber>(`/serial-numbers/${input.serialNumberId}/return`, {
+        invoiceId: input.invoiceId,
+      });
+    },
+  };
+}
+
+// ---- Warranties ----
+
+export interface WarrantyInput {
+  productId: string;
+  customerId: string;
+  serialNumber?: string;
+  startDate: string;
+  endDate: string;
+  terms?: string;
+}
+
+export interface WarrantyClaimInput {
+  warrantyId: string;
+  claimNotes: string;
+}
+
+export function warrantiesApi() {
+  return {
+    async list(): Promise<Warranty[]> {
+      const res = await api.getList<Warranty>("/warranties?limit=100");
+      return res.data;
+    },
+    async get(id: string): Promise<Warranty> {
+      return api.get<Warranty>(`/warranties/${id}`);
+    },
+    create(input: WarrantyInput): Promise<Warranty> {
+      return api.post<Warranty>("/warranties", input);
+    },
+    claim(input: WarrantyClaimInput): Promise<Warranty> {
+      return api.post<Warranty>(`/warranties/${input.warrantyId}/claim`, {
+        claimNotes: input.claimNotes,
+      });
+    },
+  };
+}
+
+// ---- Profit Report ----
+
+export interface ProfitReportRange {
+  from?: string;
+  to?: string;
+}
+
+export function profitReportApi() {
+  return {
+    getReport(range?: ProfitReportRange): Promise<ProfitReportItem[]> {
+      return api.get<ProfitReportItem[]>("/reports/profit-by-product", {
+        query: range ? { ...range } : undefined,
+      });
+    },
+  };
+}
+
+// ---- Payment Gateways ----
+
+export interface PaymentGatewayConfigInput {
+  name: string;
+  type: PaymentGatewayConfig["type"];
+  apiKey?: string;
+  merchantId?: string;
+  sandboxMode?: boolean;
+}
+
+export function paymentGatewaysApi() {
+  return {
+    async listConfigs(): Promise<PaymentGatewayConfig[]> {
+      const res = await api.getList<PaymentGatewayConfig>("/payment-gateways?limit=100");
+      return res.data;
+    },
+    createConfig(input: PaymentGatewayConfigInput): Promise<PaymentGatewayConfig> {
+      return api.post<PaymentGatewayConfig>("/payment-gateways", input);
+    },
+    updateConfig(id: string, input: Partial<PaymentGatewayConfigInput>): Promise<PaymentGatewayConfig> {
+      return api.patch<PaymentGatewayConfig>(`/payment-gateways/${id}`, input);
+    },
+    deleteConfig(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/payment-gateways/${id}`);
+    },
+    async listTransactions(query?: { gatewayId?: string }): Promise<PaymentGatewayTransaction[]> {
+      const res = await api.getList<PaymentGatewayTransaction>(
+        "/payment-gateways/transactions?limit=100",
+        { query: query as Record<string, string | number | boolean> | undefined },
+      );
+      return res.data;
     },
   };
 }

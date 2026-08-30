@@ -29,6 +29,7 @@ export class ProductRepository extends PrismaRepository<Product> {
       imageUrl: row.imageUrl ? String(row.imageUrl) : undefined,
       trackStock: Boolean(row.trackStock),
       reorderLevel: row.reorderLevel != null ? Number(row.reorderLevel) : undefined,
+      warrantyPeriodDays: row.warrantyPeriodDays != null ? Number(row.warrantyPeriodDays) : undefined,
       status: row.status as Product["status"],
       createdAt: this.toISO(row.createdAt)!,
       updatedAt: this.toISO(row.updatedAt)!,

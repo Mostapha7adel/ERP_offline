@@ -178,6 +178,30 @@ export const PERMISSIONS = {
   "purchase-returns:create": "purchase-returns:create",
   "purchase-returns:update": "purchase-returns:update",
   "purchase-returns:delete": "purchase-returns:delete",
+
+  // Stock transfers
+  "stock-transfers:read": "stock-transfers:read",
+  "stock-transfers:create": "stock-transfers:create",
+  "stock-transfers:update": "stock-transfers:update",
+  "stock-transfers:delete": "stock-transfers:delete",
+
+  // Serial numbers
+  "serial-numbers:read": "serial-numbers:read",
+  "serial-numbers:create": "serial-numbers:create",
+  "serial-numbers:update": "serial-numbers:update",
+  "serial-numbers:delete": "serial-numbers:delete",
+
+  // Warranties
+  "warranties:read": "warranties:read",
+  "warranties:create": "warranties:create",
+  "warranties:update": "warranties:update",
+  "warranties:delete": "warranties:delete",
+
+  // Payment gateways
+  "payment-gateways:read": "payment-gateways:read",
+  "payment-gateways:create": "payment-gateways:create",
+  "payment-gateways:update": "payment-gateways:update",
+  "payment-gateways:delete": "payment-gateways:delete",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

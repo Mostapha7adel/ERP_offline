@@ -35,3 +35,8 @@ export { LoyaltyPage } from "@/features/loyalty/loyalty-page";
 export { BudgetsPage } from "@/features/budgets/budgets-page";
 export { LandedCostsPage } from "@/features/landed-costs/landed-costs-page";
 export { BarcodesPage } from "@/features/barcodes/barcodes-page";
+export { StockTransfersPage } from "@/features/stock-transfers/stock-transfers-page";
+export { SerialNumbersPage } from "@/features/serial-numbers/serial-numbers-page";
+export { WarrantiesPage } from "@/features/warranties/warranties-page";
+export { ProfitReportPage } from "@/features/profit-report/profit-report-page";
+export { PaymentGatewaysPage } from "@/features/payment-gateways/payment-gateways-page";

@@ -226,6 +226,16 @@ export const permissionLabels: Record<PermissionKey, string> = {
   "barcodes.view": "View Barcodes",
   "barcodes.create": "Create Barcodes",
   "barcodes.delete": "Delete Barcodes",
+  "stock-transfers.view": "View Stock Transfers",
+  "stock-transfers.create": "Create Stock Transfers",
+  "stock-transfers.update": "Edit Stock Transfers",
+  "serial-numbers.view": "View Serial Numbers",
+  "serial-numbers.create": "Create Serial Numbers",
+  "warranties.view": "View Warranties",
+  "warranties.create": "Create Warranties",
+  "warranties.claim": "Claim Warranties",
+  "payment-gateways.view": "View Payment Gateways",
+  "payment-gateways.create": "Manage Payment Gateways",
 };
 
 export function hasPermission(

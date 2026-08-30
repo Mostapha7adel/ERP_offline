@@ -17,6 +17,7 @@ export interface Product {
   imageUrl?: string;
   trackStock: boolean;
   reorderLevel?: number;
+  warrantyPeriodDays?: number;
   status: ProductStatus;
   createdAt: string;
   updatedAt: string;
