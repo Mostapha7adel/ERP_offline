@@ -576,3 +576,242 @@ export interface ShareLink {
   mailto: string;
   whatsapp: string;
 }
+
+// ---- Payment Vouchers ----
+
+export type PaymentVoucherType = "receipt" | "payment";
+export type PaymentVoucherStatus = "draft" | "approved" | "cancelled";
+
+export interface PaymentVoucher {
+  id: ID;
+  number: string;
+  type: PaymentVoucherType;
+  date: ISOString;
+  partyId?: ID;
+  partyName?: string;
+  accountId: ID;
+  accountName?: string;
+  amount: number;
+  paymentMethod: string;
+  reference?: string;
+  description?: string;
+  status: PaymentVoucherStatus;
+  createdBy: ID;
+  createdAt: ISOString;
+}
+
+// ---- Sales Returns ----
+
+export type SalesReturnStatus = "draft" | "issued" | "cancelled";
+
+export interface SalesReturnLine {
+  id: ID;
+  productId: ID;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+export interface SalesReturn {
+  id: ID;
+  number: string;
+  customerId: ID;
+  customerName?: string;
+  invoiceId?: ID;
+  invoiceNumber?: string;
+  warehouseId?: ID;
+  warehouseName?: string;
+  returnDate: ISOString;
+  lines: SalesReturnLine[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  reason?: string;
+  status: SalesReturnStatus;
+  createdBy: ID;
+  createdAt: ISOString;
+}
+
+// ---- Purchase Returns ----
+
+export type PurchaseReturnStatus = "draft" | "issued" | "cancelled";
+
+export interface PurchaseReturnLine {
+  id: ID;
+  productId: ID;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+export interface PurchaseReturn {
+  id: ID;
+  number: string;
+  supplierId: ID;
+  supplierName?: string;
+  invoiceId?: ID;
+  invoiceNumber?: string;
+  warehouseId?: ID;
+  warehouseName?: string;
+  returnDate: ISOString;
+  lines: PurchaseReturnLine[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  reason?: string;
+  status: PurchaseReturnStatus;
+  createdBy: ID;
+  createdAt: ISOString;
+}
+
+// ---- Price Lists ----
+
+export type PriceListStatus = "active" | "inactive";
+
+export interface PriceListItem {
+  id: ID;
+  productId: ID;
+  productName: string;
+  price: number;
+  minQuantity?: number;
+}
+
+export interface PriceList {
+  id: ID;
+  name: string;
+  code: string;
+  currency: string;
+  items: PriceListItem[];
+  status: PriceListStatus;
+  notes?: string;
+  createdBy: ID;
+  createdAt: ISOString;
+}
+
+// ---- Delivery Notes ----
+
+export type DeliveryNoteStatus = "pending" | "delivered" | "cancelled";
+
+export interface DeliveryNoteLine {
+  id: ID;
+  productId: ID;
+  productName: string;
+  description?: string;
+  quantity: number;
+  deliveredQuantity: number;
+}
+
+export interface DeliveryNote {
+  id: ID;
+  number: string;
+  orderId?: ID;
+  orderNumber?: string;
+  supplierId: ID;
+  supplierName?: string;
+  warehouseId: ID;
+  warehouseName?: string;
+  expectedDate: ISOString;
+  receivedDate?: ISOString;
+  lines: DeliveryNoteLine[];
+  status: DeliveryNoteStatus;
+  notes?: string;
+  createdBy: ID;
+  createdAt: ISOString;
+}
+
+// ---- Tax Reports ----
+
+export interface TaxReportLine {
+  taxRate: number;
+  taxableAmount: number;
+  taxAmount: number;
+}
+
+export interface TaxReport {
+  id: ID;
+  period: { from: string; to: string };
+  totalSales: number;
+  totalPurchases: number;
+  taxCollected: number;
+  taxPaid: number;
+  netTax: number;
+  breakdown: TaxReportLine[];
+}
+
+// ---- Loyalty ----
+
+export interface LoyaltyTransaction {
+  id: ID;
+  customerId: ID;
+  customerName?: string;
+  type: "earn" | "redeem";
+  points: number;
+  reference?: string;
+  description?: string;
+  createdAt: ISOString;
+}
+
+export interface LoyaltyAccount {
+  id: ID;
+  customerId: ID;
+  customerName?: string;
+  pointsBalance: number;
+  totalEarned: number;
+  totalRedeemed: number;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+  transactions?: LoyaltyTransaction[];
+}
+
+// ---- Budgets ----
+
+export interface Budget {
+  id: ID;
+  accountId: ID;
+  accountCode?: string;
+  accountName?: string;
+  period: string;
+  budgeted: number;
+  actual: number;
+  notes?: string;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+}
+
+// ---- Landed Costs ----
+
+export interface LandedCostLine {
+  id: ID;
+  description: string;
+  amount: number;
+}
+
+export interface LandedCost {
+  id: ID;
+  purchaseInvoiceId: ID;
+  purchaseInvoiceNumber?: string;
+  totalAmount: number;
+  allocationMethod: "value" | "quantity" | "weight";
+  lines: LandedCostLine[];
+  notes?: string;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+}
+
+// ---- Barcodes ----
+
+export interface BarcodeEntry {
+  id: ID;
+  productId: ID;
+  productName?: string;
+  sku?: string;
+  barcode: string;
+  format: "upc-a" | "ean-13" | "code-128" | "qr";
+  createdAt: ISOString;
+}

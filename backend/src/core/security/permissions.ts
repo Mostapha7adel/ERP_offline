@@ -35,6 +35,7 @@ export const PERMISSIONS = {
   "products:create": "products:create",
   "products:update": "products:update",
   "products:delete": "products:delete",
+  "products:barcode": "products:barcode",
   "warehouses:read": "warehouses:read",
   "warehouses:create": "warehouses:create",
   "warehouses:update": "warehouses:update",
@@ -121,10 +122,62 @@ export const PERMISSIONS = {
   "advances:allocate": "advances:allocate",
   "advances:delete": "advances:delete",
 
+  // Price Lists
+  "price-lists:read": "price-lists:read",
+  "price-lists:create": "price-lists:create",
+  "price-lists:update": "price-lists:update",
+  "price-lists:delete": "price-lists:delete",
+
+  // Delivery Notes
+  "delivery-notes:read": "delivery-notes:read",
+  "delivery-notes:create": "delivery-notes:create",
+  "delivery-notes:update": "delivery-notes:update",
+  "delivery-notes:delete": "delivery-notes:delete",
+
   // Alerts & imports
   "alerts:read": "alerts:read",
   "import:create": "import:create",
   "share:read": "share:read",
+
+  // Tax reports
+  "reports:tax": "reports:tax",
+
+  // Loyalty points
+  "loyalty:read": "loyalty:read",
+  "loyalty:create": "loyalty:create",
+  "loyalty:update": "loyalty:update",
+  "loyalty:delete": "loyalty:delete",
+  "loyalty:redeem": "loyalty:redeem",
+
+  // Budgets
+  "budgets:read": "budgets:read",
+  "budgets:create": "budgets:create",
+  "budgets:update": "budgets:update",
+  "budgets:delete": "budgets:delete",
+
+  // Landed costs
+  "landed-costs:read": "landed-costs:read",
+  "landed-costs:create": "landed-costs:create",
+  "landed-costs:update": "landed-costs:update",
+  "landed-costs:delete": "landed-costs:delete",
+
+  // Payment vouchers
+  "payment-vouchers:read": "payment-vouchers:read",
+  "payment-vouchers:create": "payment-vouchers:create",
+  "payment-vouchers:update": "payment-vouchers:update",
+  "payment-vouchers:delete": "payment-vouchers:delete",
+
+  // Sales returns
+  "sales-returns:read": "sales-returns:read",
+  "sales-returns:create": "sales-returns:create",
+  "sales-returns:update": "sales-returns:update",
+  "sales-returns:delete": "sales-returns:delete",
+
+  // Purchase returns
+  "purchase-returns:read": "purchase-returns:read",
+  "purchase-returns:create": "purchase-returns:create",
+  "purchase-returns:update": "purchase-returns:update",
+  "purchase-returns:delete": "purchase-returns:delete",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

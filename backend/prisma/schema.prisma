@@ -220,6 +220,15 @@ model Company {
   purchaseOrderLines PurchaseOrderLine[]
   advances       CustomerAdvance[]
   advanceAllocations AdvanceAllocation[]
+  paymentVouchers PaymentVoucher[]
+  salesReturns    SalesReturn[]
+  purchaseReturns PurchaseReturn[]
+  loyaltyAccounts   LoyaltyAccount[]
+  loyaltyTransactions LoyaltyTransaction[]
+  budgets           Budget[]
+   landedCosts       LandedCost[]
+  priceLists        PriceList[]
+  deliveryNotes     DeliveryNote[]
 
   @@index([name])
 }
@@ -370,6 +379,11 @@ model Party {
   stockMovements   StockMovement[]
   purchaseOrders   PurchaseOrder[]       @relation("PurchaseOrderSupplier")
   advances         CustomerAdvance[]     @relation("CustomerAdvanceParty")
+  salesReturns     SalesReturn[]         @relation("SalesReturnParty")
+  purchaseReturns  PurchaseReturn[]      @relation("PurchaseReturnParty")
+   paymentVouchers  PaymentVoucher[]
+  loyaltyAccount   LoyaltyAccount?       @relation("LoyaltyParty")
+  deliveryNotes    DeliveryNote[]        @relation("DeliveryNoteParty")
 
   @@unique([companyId, code])
   @@index([companyId, type, status])
@@ -440,7 +454,11 @@ model Product {
   quoteLines   QuoteLine[]
   recurringLines RecurringInvoiceLine[]
   noteLines    TradeNoteLine[]
-  purchaseOrderLines PurchaseOrderLine[]
+   purchaseOrderLines PurchaseOrderLine[]
+  salesReturnLines   SalesReturnLine[]
+  purchaseReturnLines PurchaseReturnLine[]
+  priceListItems     PriceListItem[]
+  deliveryNoteLines  DeliveryNoteLine[]
 
   @@unique([companyId, sku])
   @@index([companyId, barcode])
@@ -477,6 +495,9 @@ model Warehouse {
   recurring  RecurringInvoice[]
   tradeNotes TradeNote[]
   purchaseOrders PurchaseOrder[]
+   salesReturns   SalesReturn[]
+  purchaseReturns PurchaseReturn[]
+  deliveryNotes   DeliveryNote[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -598,6 +619,11 @@ model Invoice {
   tradeNotes TradeNote[]
   purchaseOrder PurchaseOrder? @relation("PurchaseOrderInvoices", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   advanceAllocations AdvanceAllocation[]
+  paymentVouchers PaymentVoucher[]
+   salesReturns    SalesReturn[]
+  purchaseReturns PurchaseReturn[]
+  landedCosts     LandedCost[]
+  deliveryNotes   DeliveryNote[]
 
   quoteId String? @unique
   purchaseOrderId String?
@@ -848,6 +874,7 @@ model TreasuryAccount {
   company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   transactions TreasuryTransaction[]
   payments     InvoicePayment[]
+  paymentVouchers PaymentVoucher[]
 
   @@index([companyId, isActive])
   @@index([type])
@@ -906,6 +933,7 @@ model Account {
   assets                       Asset[]         @relation("AssetMainAccount")
   assetAccumulatedDepreciation Asset[]         @relation("AssetAccumDep")
   assetDepExpense              Asset[]         @relation("AssetDepExpense")
+  budgets                      Budget[]
 
   @@unique([companyId, code])
   @@index([companyId, type])
@@ -1313,6 +1341,341 @@ model NetworkDevice {
   @@unique([token])
   @@unique([companyId, deviceId])
   @@index([companyId])
+}
+
+// -----------------------------------------------------------------------------
+// Loyalty Points
+// -----------------------------------------------------------------------------
+
+model LoyaltyAccount {
+  id            String   @id @default(uuid())
+  companyId     String
+  partyId       String
+  points        Float    @default(0)
+  totalEarned   Float    @default(0)
+  totalRedeemed Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  party        Party               @relation("LoyaltyParty", fields: [partyId], references: [id], onDelete: Restrict)
+  transactions LoyaltyTransaction[]
+
+  @@unique([companyId, partyId])
+  @@unique([partyId])
+  @@index([companyId])
+}
+
+model LoyaltyTransaction {
+  id          String   @id @default(uuid())
+  companyId   String
+  accountId   String
+  type        String
+  points      Float
+  invoiceId   String?
+  description String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  account LoyaltyAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([accountId])
+}
+
+// -----------------------------------------------------------------------------
+// Budgets
+// -----------------------------------------------------------------------------
+
+model Budget {
+  id         String   @id @default(uuid())
+  companyId  String
+  accountId  String
+  period     String
+  amount     Float    @default(0)
+  notes      String?
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, accountId, period])
+  @@index([companyId, period])
+  @@index([accountId])
+}
+
+// -----------------------------------------------------------------------------
+// Landed Cost
+// -----------------------------------------------------------------------------
+
+model LandedCost {
+  id                String   @id @default(uuid())
+  companyId         String
+  purchaseInvoiceId String?
+  description       String
+  amount            Float
+  allocationMethod  String   @default("value")
+  date              DateTime
+  createdBy         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [purchaseInvoiceId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, date])
+  @@index([purchaseInvoiceId])
+}
+
+// -----------------------------------------------------------------------------
+// Payment Vouchers (receipts & payments)
+// -----------------------------------------------------------------------------
+
+model PaymentVoucher {
+  id          String        @id @default(uuid())
+  companyId   String
+  number      String
+  type        String        // "receipt" | "payment"
+  partyId     String?
+  partyType   String?       // "customer" | "supplier"
+  invoiceId   String?
+  accountId   String?
+  amount      Float
+  method      String        @default("cash")
+  reference   String?
+  voucherDate DateTime
+  notes       String?
+  createdBy   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  party   Party?           @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  invoice Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  account TreasuryAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, number])
+  @@index([companyId, type])
+  @@index([companyId, voucherDate])
+  @@index([partyId])
+  @@index([invoiceId])
+}
+
+// -----------------------------------------------------------------------------
+// Sales Returns
+// -----------------------------------------------------------------------------
+
+model SalesReturn {
+  id          String         @id @default(uuid())
+  companyId   String
+  number      String
+  invoiceId   String?
+  customerId  String?
+  warehouseId String?
+  returnDate  DateTime
+  subtotal    Float          @default(0)
+  discount    Float          @default(0)
+  tax         Float          @default(0)
+  total       Float          @default(0)
+  status      String         @default("issued")
+  reason      String?
+  notes       String?
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice   Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  customer  Party?           @relation("SalesReturnParty", fields: [customerId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?       @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines     SalesReturnLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, returnDate])
+  @@index([invoiceId])
+  @@index([customerId])
+}
+
+model SalesReturnLine {
+  id          String    @id @default(uuid())
+  returnId    String
+  productId   String?
+  productName String
+  description String?
+  quantity    Float
+  unitPrice   Float
+  discount    Float     @default(0)
+  taxRate     Float     @default(0)
+  lineTotal   Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  return  SalesReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  product Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([returnId])
+  @@index([productId])
+}
+
+// -----------------------------------------------------------------------------
+// Purchase Returns
+// -----------------------------------------------------------------------------
+
+model PurchaseReturn {
+  id          String         @id @default(uuid())
+  companyId   String
+  number      String
+  invoiceId   String?
+  supplierId  String?
+  warehouseId String?
+  returnDate  DateTime
+  subtotal    Float          @default(0)
+  discount    Float          @default(0)
+  tax         Float          @default(0)
+  total       Float          @default(0)
+  status      String         @default("issued")
+  reason      String?
+  notes       String?
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice   Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  supplier  Party?           @relation("PurchaseReturnParty", fields: [supplierId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?       @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines     PurchaseReturnLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, returnDate])
+  @@index([invoiceId])
+  @@index([supplierId])
+}
+
+model PurchaseReturnLine {
+  id          String    @id @default(uuid())
+  returnId    String
+  productId   String?
+  productName String
+  description String?
+  quantity    Float
+  unitPrice   Float
+  discount    Float     @default(0)
+  taxRate     Float     @default(0)
+  lineTotal   Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  return  PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  product Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([returnId])
+  @@index([productId])
+}
+
+// -----------------------------------------------------------------------------
+// Price Lists
+// -----------------------------------------------------------------------------
+
+model PriceList {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items   PriceListItem[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model PriceListItem {
+  id          String   @id @default(uuid())
+  priceListId String
+  productId   String
+  price       Float
+  minQuantity Float    @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  priceList PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([priceListId, productId])
+  @@index([priceListId])
+  @@index([productId])
+}
+
+// -----------------------------------------------------------------------------
+// Delivery Notes
+// -----------------------------------------------------------------------------
+
+model DeliveryNote {
+  id           String    @id @default(uuid())
+  companyId    String
+  number       String
+  invoiceId    String?
+  partyId      String?
+  warehouseId  String?
+  deliveryDate DateTime
+  status       String    @default("pending")
+  receivedBy   String?
+  notes        String?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  company   Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice   Invoice?             @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  party     Party?               @relation("DeliveryNoteParty", fields: [partyId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?           @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  lines     DeliveryNoteLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, deliveryDate])
+  @@index([invoiceId])
+  @@index([partyId])
+}
+
+model DeliveryNoteLine {
+  id             String    @id @default(uuid())
+  deliveryNoteId String
+  productId      String?
+  productName    String
+  description    String?
+  quantity       Float
+  unitPrice      Float     @default(0)
+  lineTotal      Float     @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  deliveryNote DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([deliveryNoteId])
+  @@index([productId])
 }
 
 // -----------------------------------------------------------------------------

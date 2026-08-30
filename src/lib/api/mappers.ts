@@ -30,6 +30,15 @@ import type {
   AssetDepreciationRun,
   CustomerAdvance,
   AdvanceAllocation,
+  PaymentVoucher,
+  SalesReturn,
+  SalesReturnLine,
+  PurchaseReturn,
+  PurchaseReturnLine,
+  PriceList,
+  PriceListItem,
+  DeliveryNote,
+  DeliveryNoteLine,
 } from "@/types/domain";
 import { mapBackendPermissions } from "./permissions";
 
@@ -1048,5 +1057,287 @@ export function mapCustomerAdvance(a: BackendCustomerAdvance): CustomerAdvance {
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
     allocations: (a.allocations ?? []).map(mapAllocation),
+  };
+}
+
+// ---- Payment Vouchers ----
+
+interface BackendPaymentVoucher {
+  id: string;
+  number: string;
+  type: "receipt" | "payment";
+  date: string;
+  partyId?: string;
+  partyName?: string;
+  accountId: string;
+  accountName?: string;
+  amount: number;
+  paymentMethod: string;
+  reference?: string;
+  description?: string;
+  status: "draft" | "approved" | "cancelled";
+  createdBy: string;
+  createdAt: string;
+}
+
+export function mapPaymentVoucher(p: BackendPaymentVoucher): PaymentVoucher {
+  return {
+    id: p.id,
+    number: p.number,
+    type: p.type,
+    date: p.date,
+    partyId: p.partyId,
+    partyName: p.partyName,
+    accountId: p.accountId,
+    accountName: p.accountName,
+    amount: p.amount,
+    paymentMethod: p.paymentMethod,
+    reference: p.reference,
+    description: p.description,
+    status: p.status,
+    createdBy: p.createdBy,
+    createdAt: p.createdAt,
+  };
+}
+
+// ---- Sales Returns ----
+
+interface BackendSalesReturnLine {
+  id: string;
+  productId: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+interface BackendSalesReturn {
+  id: string;
+  number: string;
+  customerId: string;
+  customerName?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  returnDate: string;
+  lines: BackendSalesReturnLine[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  reason?: string;
+  status: "draft" | "issued" | "cancelled";
+  createdBy: string;
+  createdAt: string;
+}
+
+function mapSalesReturnLine(l: BackendSalesReturnLine): SalesReturnLine {
+  return {
+    id: l.id,
+    productId: l.productId,
+    productName: l.productName,
+    description: l.description,
+    quantity: l.quantity,
+    unitPrice: l.unitPrice,
+    taxRate: l.taxRate,
+    lineTotal: l.lineTotal,
+  };
+}
+
+export function mapSalesReturn(r: BackendSalesReturn): SalesReturn {
+  return {
+    id: r.id,
+    number: r.number,
+    customerId: r.customerId,
+    customerName: r.customerName,
+    invoiceId: r.invoiceId,
+    invoiceNumber: r.invoiceNumber,
+    warehouseId: r.warehouseId,
+    warehouseName: r.warehouseName,
+    returnDate: r.returnDate,
+    lines: (r.lines ?? []).map(mapSalesReturnLine),
+    subtotal: r.subtotal,
+    tax: r.tax,
+    total: r.total,
+    reason: r.reason,
+    status: r.status,
+    createdBy: r.createdBy,
+    createdAt: r.createdAt,
+  };
+}
+
+// ---- Purchase Returns ----
+
+interface BackendPurchaseReturnLine {
+  id: string;
+  productId: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+interface BackendPurchaseReturn {
+  id: string;
+  number: string;
+  supplierId: string;
+  supplierName?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  returnDate: string;
+  lines: BackendPurchaseReturnLine[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  reason?: string;
+  status: "draft" | "issued" | "cancelled";
+  createdBy: string;
+  createdAt: string;
+}
+
+function mapPurchaseReturnLine(l: BackendPurchaseReturnLine): PurchaseReturnLine {
+  return {
+    id: l.id,
+    productId: l.productId,
+    productName: l.productName,
+    description: l.description,
+    quantity: l.quantity,
+    unitPrice: l.unitPrice,
+    taxRate: l.taxRate,
+    lineTotal: l.lineTotal,
+  };
+}
+
+export function mapPurchaseReturn(r: BackendPurchaseReturn): PurchaseReturn {
+  return {
+    id: r.id,
+    number: r.number,
+    supplierId: r.supplierId,
+    supplierName: r.supplierName,
+    invoiceId: r.invoiceId,
+    invoiceNumber: r.invoiceNumber,
+    warehouseId: r.warehouseId,
+    warehouseName: r.warehouseName,
+    returnDate: r.returnDate,
+    lines: (r.lines ?? []).map(mapPurchaseReturnLine),
+    subtotal: r.subtotal,
+    tax: r.tax,
+    total: r.total,
+    reason: r.reason,
+    status: r.status,
+    createdBy: r.createdBy,
+    createdAt: r.createdAt,
+  };
+}
+
+// ---- Price Lists ----
+
+interface BackendPriceListItem {
+  id: string;
+  productId: string;
+  productName: string;
+  price: number;
+  minQuantity?: number;
+}
+
+interface BackendPriceList {
+  id: string;
+  name: string;
+  code: string;
+  currency: string;
+  items: BackendPriceListItem[];
+  status: "active" | "inactive";
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+function mapPriceListItem(i: BackendPriceListItem): PriceListItem {
+  return {
+    id: i.id,
+    productId: i.productId,
+    productName: i.productName,
+    price: i.price,
+    minQuantity: i.minQuantity,
+  };
+}
+
+export function mapPriceList(p: BackendPriceList): PriceList {
+  return {
+    id: p.id,
+    name: p.name,
+    code: p.code,
+    currency: p.currency,
+    items: (p.items ?? []).map(mapPriceListItem),
+    status: p.status,
+    notes: p.notes,
+    createdBy: p.createdBy,
+    createdAt: p.createdAt,
+  };
+}
+
+// ---- Delivery Notes ----
+
+interface BackendDeliveryNoteLine {
+  id: string;
+  productId: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  deliveredQuantity: number;
+}
+
+interface BackendDeliveryNote {
+  id: string;
+  number: string;
+  orderId?: string;
+  orderNumber?: string;
+  supplierId: string;
+  supplierName?: string;
+  warehouseId: string;
+  warehouseName?: string;
+  expectedDate: string;
+  receivedDate?: string;
+  lines: BackendDeliveryNoteLine[];
+  status: "pending" | "delivered" | "cancelled";
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+function mapDeliveryNoteLine(l: BackendDeliveryNoteLine): DeliveryNoteLine {
+  return {
+    id: l.id,
+    productId: l.productId,
+    productName: l.productName,
+    description: l.description,
+    quantity: l.quantity,
+    deliveredQuantity: l.deliveredQuantity,
+  };
+}
+
+export function mapDeliveryNote(d: BackendDeliveryNote): DeliveryNote {
+  return {
+    id: d.id,
+    number: d.number,
+    orderId: d.orderId,
+    orderNumber: d.orderNumber,
+    supplierId: d.supplierId,
+    supplierName: d.supplierName,
+    warehouseId: d.warehouseId,
+    warehouseName: d.warehouseName,
+    expectedDate: d.expectedDate,
+    receivedDate: d.receivedDate,
+    lines: (d.lines ?? []).map(mapDeliveryNoteLine),
+    status: d.status,
+    notes: d.notes,
+    createdBy: d.createdBy,
+    createdAt: d.createdAt,
   };
 }

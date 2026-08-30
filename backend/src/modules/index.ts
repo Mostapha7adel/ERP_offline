@@ -26,6 +26,16 @@ import { registerAdvancesController } from "./advances/advance.controller.js";
 import { registerAlertsController } from "./alerts/alert.controller.js";
 import { registerImportController } from "./import/import.controller.js";
 import { registerShareController } from "./share/share.controller.js";
+import { registerPriceListsController } from "./price-lists/price-list.controller.js";
+import { registerDeliveryNotesController } from "./delivery-notes/delivery-note.controller.js";
+import { registerBarcodeController } from "./products/barcode.controller.js";
+import { registerPaymentVouchersController } from "./payment-vouchers/payment-voucher.controller.js";
+import { registerSalesReturnsController } from "./sales-returns/sales-return.controller.js";
+import { registerPurchaseReturnsController } from "./purchase-returns/purchase-return.controller.js";
+import { registerTaxReportController } from "./reports/tax-report.controller.js";
+import { registerLoyaltyController } from "./loyalty/loyalty.controller.js";
+import { registerBudgetsController } from "./budgets/budget.controller.js";
+import { registerLandedCostsController } from "./landed-costs/landed-cost.controller.js";
 
 /**
  * Feature modules are registered under the `/api/v1` prefix.
@@ -66,6 +76,16 @@ export async function registerModules(app: FastifyInstance): Promise<void> {
       registerAlertsController(scoped);
       registerImportController(scoped);
       registerShareController(scoped);
+      registerPaymentVouchersController(scoped);
+      registerSalesReturnsController(scoped);
+      registerPurchaseReturnsController(scoped);
+      registerTaxReportController(scoped);
+      registerLoyaltyController(scoped);
+      registerBudgetsController(scoped);
+      registerLandedCostsController(scoped);
+      registerPriceListsController(scoped);
+      registerDeliveryNotesController(scoped);
+      registerBarcodeController(scoped);
     },
     { prefix: "/api/v1" },
   );

@@ -20,6 +20,11 @@ import {
   mapPurchaseOrder,
   mapAsset,
   mapCustomerAdvance,
+  mapPaymentVoucher,
+  mapSalesReturn,
+  mapPurchaseReturn,
+  mapPriceList,
+  mapDeliveryNote,
 } from "./mappers";
 import type {
   Party,
@@ -47,6 +52,17 @@ import type {
   AlertsSummary,
   ImportResult,
   ShareLink,
+  PaymentVoucher,
+  SalesReturn,
+  PurchaseReturn,
+  PriceList,
+  DeliveryNote,
+  TaxReport,
+  LoyaltyAccount,
+  LoyaltyTransaction,
+  Budget,
+  LandedCost,
+  BarcodeEntry,
 } from "@/types/domain";
 
 // ---- Auth ----
@@ -1563,6 +1579,370 @@ export function shareApi() {
   return {
     build(input: { type: "invoice" | "statement"; id?: string; partyId?: string; to?: string }): Promise<ShareLink> {
       return api.post<ShareLink>("/share", input);
+    },
+  };
+}
+
+// ---- Payment Vouchers ----
+
+export interface PaymentVoucherInput {
+  type: "receipt" | "payment";
+  date: string;
+  partyId?: string;
+  accountId: string;
+  amount: number;
+  paymentMethod?: string;
+  reference?: string;
+  description?: string;
+  status?: "draft" | "approved" | "cancelled";
+}
+
+export function paymentVouchersApi() {
+  return {
+    async list(): Promise<PaymentVoucher[]> {
+      const res = await api.getList<Parameters<typeof mapPaymentVoucher>[0]>(
+        "/payment-vouchers?limit=100",
+      );
+      return res.data.map(mapPaymentVoucher);
+    },
+    async get(id: string): Promise<PaymentVoucher> {
+      const voucher = await api.get<Parameters<typeof mapPaymentVoucher>[0]>(`/payment-vouchers/${id}`);
+      return mapPaymentVoucher(voucher);
+    },
+    create(input: PaymentVoucherInput): Promise<PaymentVoucher> {
+      return api
+        .post<Parameters<typeof mapPaymentVoucher>[0]>("/payment-vouchers", input)
+        .then(mapPaymentVoucher);
+    },
+    update(id: string, input: Partial<PaymentVoucherInput>): Promise<PaymentVoucher> {
+      return api
+        .patch<Parameters<typeof mapPaymentVoucher>[0]>(`/payment-vouchers/${id}`, input)
+        .then(mapPaymentVoucher);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/payment-vouchers/${id}`);
+    },
+  };
+}
+
+// ---- Sales Returns ----
+
+export interface SalesReturnLineInput {
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+}
+
+export interface SalesReturnInput {
+  customerId: string;
+  invoiceId?: string;
+  warehouseId?: string;
+  returnDate: string;
+  lines: SalesReturnLineInput[];
+  reason?: string;
+  notes?: string;
+}
+
+export function salesReturnsApi() {
+  return {
+    async list(): Promise<SalesReturn[]> {
+      const res = await api.getList<Parameters<typeof mapSalesReturn>[0]>(
+        "/sales-returns?limit=100",
+      );
+      return res.data.map(mapSalesReturn);
+    },
+    async get(id: string): Promise<SalesReturn> {
+      const ret = await api.get<Parameters<typeof mapSalesReturn>[0]>(`/sales-returns/${id}`);
+      return mapSalesReturn(ret);
+    },
+    create(input: SalesReturnInput): Promise<SalesReturn> {
+      return api
+        .post<Parameters<typeof mapSalesReturn>[0]>("/sales-returns", input)
+        .then(mapSalesReturn);
+    },
+    update(id: string, input: Partial<SalesReturnInput>): Promise<SalesReturn> {
+      return api
+        .patch<Parameters<typeof mapSalesReturn>[0]>(`/sales-returns/${id}`, input)
+        .then(mapSalesReturn);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/sales-returns/${id}`);
+    },
+  };
+}
+
+// ---- Purchase Returns ----
+
+export interface PurchaseReturnLineInput {
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+}
+
+export interface PurchaseReturnInput {
+  supplierId: string;
+  invoiceId?: string;
+  warehouseId?: string;
+  returnDate: string;
+  lines: PurchaseReturnLineInput[];
+  reason?: string;
+  notes?: string;
+}
+
+export function purchaseReturnsApi() {
+  return {
+    async list(): Promise<PurchaseReturn[]> {
+      const res = await api.getList<Parameters<typeof mapPurchaseReturn>[0]>(
+        "/purchase-returns?limit=100",
+      );
+      return res.data.map(mapPurchaseReturn);
+    },
+    async get(id: string): Promise<PurchaseReturn> {
+      const ret = await api.get<Parameters<typeof mapPurchaseReturn>[0]>(`/purchase-returns/${id}`);
+      return mapPurchaseReturn(ret);
+    },
+    create(input: PurchaseReturnInput): Promise<PurchaseReturn> {
+      return api
+        .post<Parameters<typeof mapPurchaseReturn>[0]>("/purchase-returns", input)
+        .then(mapPurchaseReturn);
+    },
+    update(id: string, input: Partial<PurchaseReturnInput>): Promise<PurchaseReturn> {
+      return api
+        .patch<Parameters<typeof mapPurchaseReturn>[0]>(`/purchase-returns/${id}`, input)
+        .then(mapPurchaseReturn);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/purchase-returns/${id}`);
+    },
+  };
+}
+
+// ---- Price Lists ----
+
+export interface PriceListItemInput {
+  productId?: string;
+  productName: string;
+  price: number;
+  minQuantity?: number;
+}
+
+export interface PriceListInput {
+  name: string;
+  code: string;
+  currency?: string;
+  items: PriceListItemInput[];
+  status?: "active" | "inactive";
+  notes?: string;
+}
+
+export function priceListsApi() {
+  return {
+    async list(): Promise<PriceList[]> {
+      const res = await api.getList<Parameters<typeof mapPriceList>[0]>(
+        "/price-lists?limit=100",
+      );
+      return res.data.map(mapPriceList);
+    },
+    async get(id: string): Promise<PriceList> {
+      const pl = await api.get<Parameters<typeof mapPriceList>[0]>(`/price-lists/${id}`);
+      return mapPriceList(pl);
+    },
+    create(input: PriceListInput): Promise<PriceList> {
+      return api
+        .post<Parameters<typeof mapPriceList>[0]>("/price-lists", input)
+        .then(mapPriceList);
+    },
+    update(id: string, input: Partial<PriceListInput>): Promise<PriceList> {
+      return api
+        .patch<Parameters<typeof mapPriceList>[0]>(`/price-lists/${id}`, input)
+        .then(mapPriceList);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/price-lists/${id}`);
+    },
+  };
+}
+
+// ---- Delivery Notes ----
+
+export interface DeliveryNoteLineInput {
+  productId?: string;
+  productName: string;
+  description?: string;
+  quantity: number;
+  deliveredQuantity?: number;
+}
+
+export interface DeliveryNoteInput {
+  orderId?: string;
+  supplierId: string;
+  warehouseId: string;
+  expectedDate: string;
+  lines: DeliveryNoteLineInput[];
+  notes?: string;
+}
+
+export function deliveryNotesApi() {
+  return {
+    async list(): Promise<DeliveryNote[]> {
+      const res = await api.getList<Parameters<typeof mapDeliveryNote>[0]>(
+        "/delivery-notes?limit=100",
+      );
+      return res.data.map(mapDeliveryNote);
+    },
+    async get(id: string): Promise<DeliveryNote> {
+      const note = await api.get<Parameters<typeof mapDeliveryNote>[0]>(`/delivery-notes/${id}`);
+      return mapDeliveryNote(note);
+    },
+    create(input: DeliveryNoteInput): Promise<DeliveryNote> {
+      return api
+        .post<Parameters<typeof mapDeliveryNote>[0]>("/delivery-notes", input)
+        .then(mapDeliveryNote);
+    },
+    update(id: string, input: Partial<DeliveryNoteInput>): Promise<DeliveryNote> {
+      return api
+        .patch<Parameters<typeof mapDeliveryNote>[0]>(`/delivery-notes/${id}`, input)
+        .then(mapDeliveryNote);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/delivery-notes/${id}`);
+    },
+  };
+}
+
+// ---- Tax Reports ----
+
+export interface TaxReportRange {
+  from?: string;
+  to?: string;
+}
+
+export function taxReportApi() {
+  return {
+    async generate(range?: TaxReportRange): Promise<TaxReport> {
+      return api.get<TaxReport>("/reports/tax", { query: range ? { ...range } : undefined });
+    },
+  };
+}
+
+// ---- Loyalty ----
+
+export interface LoyaltyEarnInput {
+  customerId: string;
+  points: number;
+  reference?: string;
+  description?: string;
+}
+
+export interface LoyaltyRedeemInput {
+  customerId: string;
+  points: number;
+  reference?: string;
+  description?: string;
+}
+
+export function loyaltyApi() {
+  return {
+    async listAccounts(): Promise<LoyaltyAccount[]> {
+      const res = await api.getList<LoyaltyAccount>("/loyalty/accounts?limit=100");
+      return res.data;
+    },
+    async transactions(customerId?: string): Promise<LoyaltyTransaction[]> {
+      const res = await api.getList<LoyaltyTransaction>(
+        "/loyalty/transactions?limit=100",
+        { query: customerId ? { customerId } : undefined },
+      );
+      return res.data;
+    },
+    earn(input: LoyaltyEarnInput): Promise<LoyaltyAccount> {
+      return api.post<LoyaltyAccount>("/loyalty/earn", input);
+    },
+    redeem(input: LoyaltyRedeemInput): Promise<LoyaltyAccount> {
+      return api.post<LoyaltyAccount>("/loyalty/redeem", input);
+    },
+  };
+}
+
+// ---- Budgets ----
+
+export interface BudgetInput {
+  accountId: string;
+  period: string;
+  budgeted: number;
+  notes?: string;
+}
+
+export function budgetsApi() {
+  return {
+    async list(): Promise<Budget[]> {
+      const res = await api.getList<Budget>("/budgets?limit=100");
+      return res.data;
+    },
+    create(input: BudgetInput): Promise<Budget> {
+      return api.post<Budget>("/budgets", input);
+    },
+    update(id: string, input: Partial<BudgetInput>): Promise<Budget> {
+      return api.patch<Budget>(`/budgets/${id}`, input);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/budgets/${id}`);
+    },
+  };
+}
+
+// ---- Landed Costs ----
+
+export interface LandedCostInput {
+  purchaseInvoiceId: string;
+  totalAmount: number;
+  allocationMethod: "value" | "quantity" | "weight";
+  lines: Array<{ description: string; amount: number }>;
+  notes?: string;
+}
+
+export function landedCostsApi() {
+  return {
+    async list(): Promise<LandedCost[]> {
+      const res = await api.getList<LandedCost>("/landed-costs?limit=100");
+      return res.data;
+    },
+    create(input: LandedCostInput): Promise<LandedCost> {
+      return api.post<LandedCost>("/landed-costs", input);
+    },
+    update(id: string, input: Partial<LandedCostInput>): Promise<LandedCost> {
+      return api.patch<LandedCost>(`/landed-costs/${id}`, input);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/landed-costs/${id}`);
+    },
+  };
+}
+
+// ---- Barcodes ----
+
+export interface BarcodeGenerateInput {
+  productId: string;
+  format?: "upc-a" | "ean-13" | "code-128" | "qr";
+  barcode?: string;
+}
+
+export function barcodeApi() {
+  return {
+    async list(): Promise<BarcodeEntry[]> {
+      const res = await api.getList<BarcodeEntry>("/barcodes?limit=100");
+      return res.data;
+    },
+    generate(input: BarcodeGenerateInput): Promise<BarcodeEntry> {
+      return api.post<BarcodeEntry>("/barcodes/generate", input);
+    },
+    async remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/barcodes/${id}`);
     },
   };
 }
