@@ -63,7 +63,7 @@ export function registerSerialNumbersController(app: FastifyInstance): void {
       response: { 201: singleResponse },
     },
   }, async (request, reply) => {
-    const serial = await serialNumberService.create(request.body as any, getAuditContext(request));
+    const serial = await serialNumberService.create(request.body, getAuditContext(request));
     void reply.status(201);
     return ok(serial);
   });
@@ -77,7 +77,7 @@ export function registerSerialNumbersController(app: FastifyInstance): void {
       response: { 201: z.object({ success: z.literal(true), data: z.array(serialNumberSchema) }) },
     },
   }, async (request, reply) => {
-    const serials = await serialNumberService.bulkCreate(request.body as any, getAuditContext(request));
+    const serials = await serialNumberService.bulkCreate(request.body, getAuditContext(request));
     void reply.status(201);
     return ok(serials);
   });

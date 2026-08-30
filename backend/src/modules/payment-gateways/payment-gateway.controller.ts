@@ -65,7 +65,7 @@ export function registerPaymentGatewaysController(app: FastifyInstance): void {
       response: { 201: singleConfigResponse },
     },
   }, async (request, reply) => {
-    const config = await paymentGatewayService.createConfig(request.body as any, getAuditContext(request));
+    const config = await paymentGatewayService.createConfig(request.body, getAuditContext(request));
     void reply.status(201);
     return ok(config);
   });
@@ -81,7 +81,7 @@ export function registerPaymentGatewaysController(app: FastifyInstance): void {
     },
   }, async (request) => {
     const { id } = request.params as { id: string };
-    return ok(await paymentGatewayService.updateConfig(id, request.body as any, getAuditContext(request)));
+    return ok(await paymentGatewayService.updateConfig(id, request.body, getAuditContext(request)));
   });
 
   typed.delete("/payment-gateways/:id", {
@@ -108,7 +108,7 @@ export function registerPaymentGatewaysController(app: FastifyInstance): void {
       response: { 201: singleTransactionResponse },
     },
   }, async (request, reply) => {
-    const transaction = await paymentGatewayService.createTransaction(request.body as any, getAuditContext(request));
+    const transaction = await paymentGatewayService.createTransaction(request.body, getAuditContext(request));
     void reply.status(201);
     return ok(transaction);
   });

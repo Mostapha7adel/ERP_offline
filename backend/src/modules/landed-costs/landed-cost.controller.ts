@@ -56,7 +56,7 @@ export function registerLandedCostsController(app: FastifyInstance): void {
       response: { 201: singleResponse },
     },
   }, async (request, reply) => {
-    const landedCost = await landedCostService.create(request.body as any, getAuditContext(request));
+    const landedCost = await landedCostService.create(request.body, getAuditContext(request));
     void reply.status(201);
     return ok(landedCost);
   });
@@ -72,7 +72,7 @@ export function registerLandedCostsController(app: FastifyInstance): void {
     },
   }, async (request) => {
     const { id } = request.params as { id: string };
-    return ok(await landedCostService.update(id, request.body as any, getAuditContext(request)));
+    return ok(await landedCostService.update(id, request.body, getAuditContext(request)));
   });
 
   typed.delete("/landed-costs/:id", {

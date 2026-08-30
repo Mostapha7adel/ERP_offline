@@ -28,7 +28,6 @@ import { registerImportController } from "./import/import.controller.js";
 import { registerShareController } from "./share/share.controller.js";
 import { registerPriceListsController } from "./price-lists/price-list.controller.js";
 import { registerDeliveryNotesController } from "./delivery-notes/delivery-note.controller.js";
-import { registerBarcodeController } from "./products/barcode.controller.js";
 import { registerPaymentVouchersController } from "./payment-vouchers/payment-voucher.controller.js";
 import { registerSalesReturnsController } from "./sales-returns/sales-return.controller.js";
 import { registerPurchaseReturnsController } from "./purchase-returns/purchase-return.controller.js";
@@ -99,7 +98,6 @@ export async function registerModules(app: FastifyInstance): Promise<void> {
       registerLandedCostsController(scoped);
       registerPriceListsController(scoped);
       registerDeliveryNotesController(scoped);
-      registerBarcodeController(scoped);
       registerStockTransfersController(scoped);
       registerSerialNumbersController(scoped);
       registerWarrantiesController(scoped);

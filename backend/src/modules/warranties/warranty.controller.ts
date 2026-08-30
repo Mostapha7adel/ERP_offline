@@ -63,7 +63,7 @@ export function registerWarrantiesController(app: FastifyInstance): void {
       response: { 201: singleResponse },
     },
   }, async (request, reply) => {
-    const warranty = await warrantyService.create(request.body as any, getAuditContext(request));
+    const warranty = await warrantyService.create(request.body, getAuditContext(request));
     void reply.status(201);
     return ok(warranty);
   });

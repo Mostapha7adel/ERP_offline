@@ -56,7 +56,7 @@ export function registerStockTransfersController(app: FastifyInstance): void {
       response: { 201: singleResponse },
     },
   }, async (request, reply) => {
-    const transfer = await stockTransferService.create(request.body as any, getAuditContext(request));
+    const transfer = await stockTransferService.create(request.body, getAuditContext(request));
     void reply.status(201);
     return ok(transfer);
   });
@@ -72,7 +72,7 @@ export function registerStockTransfersController(app: FastifyInstance): void {
     },
   }, async (request) => {
     const { id } = request.params as { id: string };
-    return ok(await stockTransferService.update(id, request.body as any, getAuditContext(request)));
+    return ok(await stockTransferService.update(id, request.body, getAuditContext(request)));
   });
 
   typed.post("/stock-transfers/:id/complete", {

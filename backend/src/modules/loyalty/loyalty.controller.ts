@@ -57,7 +57,7 @@ export function registerLoyaltyController(app: FastifyInstance): void {
       response: { 201: z.object({ success: z.literal(true), data: z.any() }) },
     },
   }, async (request, reply) => {
-    const result = await loyaltyService.earn(request.body as any, getAuditContext(request));
+    const result = await loyaltyService.earn(request.body, getAuditContext(request));
     void reply.status(201);
     return ok(result);
   });
@@ -71,7 +71,7 @@ export function registerLoyaltyController(app: FastifyInstance): void {
       response: { 200: z.object({ success: z.literal(true), data: z.any() }) },
     },
   }, async (request) => {
-    const result = await loyaltyService.redeem(request.body as any, getAuditContext(request));
+    const result = await loyaltyService.redeem(request.body, getAuditContext(request));
     return ok(result);
   });
 
@@ -84,7 +84,7 @@ export function registerLoyaltyController(app: FastifyInstance): void {
       response: { 200: z.object({ success: z.literal(true), data: z.any() }) },
     },
   }, async (request) => {
-    const result = await loyaltyService.adjust(request.body as any, getAuditContext(request));
+    const result = await loyaltyService.adjust(request.body, getAuditContext(request));
     return ok(result);
   });
 

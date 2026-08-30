@@ -30,6 +30,7 @@ import { useWarrantiesStore } from "@/stores/warranties-store";
 import { usePaymentGatewaysStore } from "@/stores/payment-gateways-store";
 import { useCustomReportsStore } from "@/stores/custom-reports-store";
 import { useScheduledReportsStore } from "@/stores/scheduled-reports-store";
+import { usePeriodCloseStore } from "@/stores/period-close-store";
 import { mapStockItem } from "@/lib/api/mappers";
 import {
   partiesApi,
@@ -67,6 +68,7 @@ import {
   paymentGatewaysApi,
   customReportsApi,
   scheduledReportsApi,
+  periodCloseApi,
 } from "@/lib/api";
 
 /**
@@ -109,6 +111,7 @@ export async function hydrateAll(): Promise<void> {
     hydratePaymentGateways(),
     hydrateCustomReports(),
     hydrateScheduledReports(),
+    hydratePeriodClose(),
   ]);
 }
 
@@ -467,6 +470,15 @@ export async function hydrateScheduledReports(): Promise<void> {
   try {
     const reports = await scheduledReportsApi().list();
     useScheduledReportsStore.getState().hydrate(reports);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydratePeriodClose(): Promise<void> {
+  try {
+    const periods = await periodCloseApi().list();
+    usePeriodCloseStore.getState().hydrate(periods);
   } catch {
     // keep existing data
   }
