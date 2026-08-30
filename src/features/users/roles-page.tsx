@@ -43,6 +43,7 @@ const GROUP_LABELS: Record<string, string> = {
   "serial-numbers": "Serial Numbers",
   warranties: "Warranties",
   "payment-gateways": "Payment Gateways",
+  "period-close": "Period Close",
   alerts: "Alerts",
   import: "Import",
   share: "Share",
@@ -66,6 +67,7 @@ const GROUP_LABELS_AR: Record<string, string> = {
   purchases: "المشتريات",
   quotes: "عروض الأسعار",
   recurring: "الفواتير الدورية",
+  notes: "الإشعارات",
   "purchase-orders": "أوامر الشراء",
   assets: "الأصول الثابتة",
   currencies: "العملات",
@@ -79,6 +81,7 @@ const GROUP_LABELS_AR: Record<string, string> = {
   "serial-numbers": "الأرقام التسلسلية",
   warranties: "الضمانات",
   "payment-gateways": "بوابات الدفع",
+  "period-close": "إغلاق الفترات",
   alerts: "التنبيهات",
   import: "الاستيراد",
   share: "المشاركة",
@@ -89,6 +92,7 @@ const GROUP_LABELS_AR: Record<string, string> = {
   roles: "الأدوار",
   settings: "الإعدادات",
   backup: "النسخ الاحتياطي",
+  network: "الشبكة",
 };
 
 const PERMISSION_LABELS_AR: Record<PermissionKey, string> = {
@@ -195,15 +199,18 @@ const PERMISSION_LABELS_AR: Record<PermissionKey, string> = {
   "warranties.claim": "المطالبة بالضمان",
   "payment-gateways.view": "عرض بوابات الدفع",
   "payment-gateways.create": "إدارة بوابات الدفع",
+  "period-close.view": "عرض إغلاق الفترات",
+  "period-close.create": "إدارة إغلاق الفترات",
 };
 
 const GROUP_ORDER = [
   "dashboard", "customers", "suppliers", "products", "warehouses",
-  "inventory", "sales", "purchases", "quotes", "recurring", "purchase-orders",
-  "assets", "currencies", "advances", "tax-reports", "loyalty", "budgets",
-  "landed-costs", "barcodes", "stock-transfers", "serial-numbers", "warranties",
-  "payment-gateways", "alerts", "import", "share",
-  "treasury", "accounting", "reports", "users", "roles", "settings", "backup",
+  "inventory", "sales", "purchases", "quotes", "recurring", "notes",
+  "purchase-orders", "assets", "currencies", "advances", "tax-reports",
+  "loyalty", "budgets", "landed-costs", "barcodes", "stock-transfers",
+  "serial-numbers", "warranties", "payment-gateways", "period-close", "alerts",
+  "import", "share", "treasury", "accounting", "reports", "users", "roles",
+  "settings", "backup", "network",
 ];
 
 export function RolesPage() {

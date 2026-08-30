@@ -95,6 +95,8 @@ const BACKEND_TO_FRONTEND: Record<string, PermissionKey[]> = {
   "alerts:read": ["alerts.view"],
   "import:create": ["import.create"],
   "share:read": ["share.create"],
+  "period-close:read": ["period-close.view"],
+  "period-close:manage": ["period-close.create"],
 };
 
 const ALL_FRONTEND_KEYS = Object.values(BACKEND_TO_FRONTEND).flat();

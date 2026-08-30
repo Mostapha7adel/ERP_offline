@@ -48,6 +48,8 @@ import { registerBranchProfitController } from "./reports/branch-profit.controll
 import { registerCustomReportController } from "./custom-reports/custom-report.controller.js";
 import { registerScheduledReportController } from "./scheduled-reports/scheduled-report.controller.js";
 import { registerPaymentGatewaysController } from "./payment-gateways/payment-gateway.controller.js";
+import { registerPeriodCloseController } from "./period-close/period-close.controller.js";
+import { registerBarcodesController } from "./barcodes/barcode.controller.js";
 
 /**
  * Feature modules are registered under the `/api/v1` prefix.
@@ -110,6 +112,8 @@ export async function registerModules(app: FastifyInstance): Promise<void> {
       registerCustomReportController(scoped);
       registerScheduledReportController(scoped);
       registerPaymentGatewaysController(scoped);
+      registerPeriodCloseController(scoped);
+      registerBarcodesController(scoped);
     },
     { prefix: "/api/v1" },
   );

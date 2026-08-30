@@ -43,6 +43,7 @@ export class PaymentVoucherService {
         data: {
           number,
           type: validated.type,
+          status: "active",
           partyId: validated.partyId,
           partyType: validated.partyType,
           invoiceId: validated.invoiceId,
@@ -153,6 +154,43 @@ export class PaymentVoucherService {
       await paymentVoucherRepository.delete(id);
       await auditService.log(audit, "delete:payment-voucher", "payment-voucher", id, { number: existing.number });
       return { id };
+    });
+  }
+
+  async void(id: string, audit: AuditContext): Promise<PaymentVoucher> {
+    const existing = await paymentVoucherRepository.findById(id);
+    if (!existing) throw AppError.notFound("Payment voucher not found");
+
+    return withTransaction(async () => {
+      // Reverse invoice paidAmount if linked
+      if (existing.invoiceId) {
+        const invoice = await invoiceRepository.findById(existing.invoiceId);
+        if (invoice && invoice.status !== "void") {
+          const paidAmount = Math.max(0, round2(invoice.paidAmount - existing.amount));
+          const status = paidAmount >= invoice.total ? "paid" : paidAmount > 0 ? "partial" : "issued";
+          await invoiceRepository.update({ id: invoice.id, data: { paidAmount, status } });
+        }
+      }
+
+      // Reverse treasury account balance if linked
+      if (existing.accountId) {
+        const account = await treasuryAccountRepository.findById(existing.accountId);
+        if (account) {
+          const delta = existing.type === "receipt" ? -existing.amount : existing.amount;
+          await treasuryAccountRepository.update({
+            id: account.id,
+            data: { balance: round2(account.balance + delta) },
+          });
+        }
+      }
+
+      const updated = await paymentVoucherRepository.update({
+        id,
+        data: { status: "void" } as any,
+      });
+
+      await auditService.log(audit, "void:payment-voucher", "payment-voucher", id, { number: existing.number });
+      return updated as PaymentVoucher;
     });
   }
 

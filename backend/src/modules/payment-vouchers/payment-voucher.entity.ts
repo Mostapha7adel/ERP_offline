@@ -5,6 +5,7 @@ export interface PaymentVoucher {
   id: string;
   number: string;
   type: PaymentVoucherType;
+  status: string;
   partyId?: string;
   partyType?: PaymentVoucherPartyType;
   invoiceId?: string;

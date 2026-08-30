@@ -47,3 +47,4 @@ export { PeriodComparisonPage } from "@/features/period-comparison/period-compar
 export { BranchProfitPage } from "@/features/branch-profit/branch-profit-page";
 export { CustomReportsPage } from "@/features/custom-reports/custom-reports-page";
 export { ScheduledReportsPage } from "@/features/scheduled-reports/scheduled-reports-page";
+export { PeriodClosePage } from "@/features/period-close/period-close-page";

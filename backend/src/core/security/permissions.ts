@@ -205,6 +205,10 @@ export const PERMISSIONS = {
   "payment-gateways:create": "payment-gateways:create",
   "payment-gateways:update": "payment-gateways:update",
   "payment-gateways:delete": "payment-gateways:delete",
+
+  // Period close
+  "period-close:read": "period-close:read",
+  "period-close:manage": "period-close:manage",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

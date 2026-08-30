@@ -41,6 +41,7 @@ import {
   ArrowUpDown,
   GitCompareArrows,
   FileCog,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
 import type { NavSection } from "@/types/navigation";
@@ -259,6 +260,14 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: CalendarClock,
         permission: "accounting.view",
         keywords: "fiscal year closing retained earnings period lock",
+      },
+      {
+        title: "Period Close",
+        titleAr: "إغلاق الفترات",
+        href: "/app/period-close",
+        icon: Lock,
+        permission: "period-close.view",
+        keywords: "period close lock open accounting month",
       },
       {
         title: "Fixed Assets",

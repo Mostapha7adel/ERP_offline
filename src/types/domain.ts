@@ -1061,3 +1061,18 @@ export interface ScheduledReport {
   createdAt: ISOString;
   updatedAt: ISOString;
 }
+
+// ---- Period Close ----
+
+export type PeriodCloseStatus = "open" | "closed";
+
+export interface PeriodClose {
+  id: ID;
+  period: string;
+  status: PeriodCloseStatus;
+  closedAt?: ISOString;
+  closedBy?: string;
+  notes?: string;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+}

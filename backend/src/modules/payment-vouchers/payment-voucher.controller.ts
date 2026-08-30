@@ -92,4 +92,17 @@ export function registerPaymentVouchersController(app: FastifyInstance): void {
     const { id } = request.params as { id: string };
     return ok(await paymentVoucherService.delete(id, getAuditContext(request)));
   });
+
+  typed.post("/payment-vouchers/:id/void", {
+    preHandler: requirePermission(PERMISSIONS["payment-vouchers:update"]),
+    schema: {
+      description: "Void a payment voucher (reverses treasury transactions and marks as void)",
+      security: [{ bearerAuth: [] }],
+      params: z.object({ id: z.string() }),
+      response: { 200: singleResponse },
+    },
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    return ok(await paymentVoucherService.void(id, getAuditContext(request)));
+  });
 }

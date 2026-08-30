@@ -13,6 +13,7 @@ export class PaymentVoucherRepository extends PrismaRepository<PaymentVoucher> {
       id: String(row.id),
       number: String(row.number),
       type: row.type as PaymentVoucher["type"],
+      status: String(row.status ?? "active"),
       partyId: row.partyId ? String(row.partyId) : undefined,
       partyType: row.partyType ? (row.partyType as PaymentVoucher["partyType"]) : undefined,
       invoiceId: row.invoiceId ? String(row.invoiceId) : undefined,

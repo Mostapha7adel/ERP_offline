@@ -16,6 +16,20 @@ import { useCurrenciesStore } from "@/stores/currencies-store";
 import { usePurchaseOrdersStore } from "@/stores/purchase-orders-store";
 import { useAssetsStore } from "@/stores/assets-store";
 import { useAdvancesStore } from "@/stores/advances-store";
+import { usePaymentVouchersStore } from "@/stores/payment-vouchers-store";
+import { useSalesReturnsStore } from "@/stores/sales-returns-store";
+import { usePurchaseReturnsStore } from "@/stores/purchase-returns-store";
+import { usePriceListsStore } from "@/stores/price-lists-store";
+import { useDeliveryNotesStore } from "@/stores/delivery-notes-store";
+import { useLoyaltyStore } from "@/stores/loyalty-store";
+import { useBudgetsStore } from "@/stores/budgets-store";
+import { useLandedCostsStore } from "@/stores/landed-costs-store";
+import { useStockTransfersStore } from "@/stores/stock-transfers-store";
+import { useSerialNumbersStore } from "@/stores/serial-numbers-store";
+import { useWarrantiesStore } from "@/stores/warranties-store";
+import { usePaymentGatewaysStore } from "@/stores/payment-gateways-store";
+import { useCustomReportsStore } from "@/stores/custom-reports-store";
+import { useScheduledReportsStore } from "@/stores/scheduled-reports-store";
 import { mapStockItem } from "@/lib/api/mappers";
 import {
   partiesApi,
@@ -39,6 +53,20 @@ import {
   assetsApi,
   advancesApi,
   alertsApi,
+  paymentVouchersApi,
+  salesReturnsApi,
+  purchaseReturnsApi,
+  priceListsApi,
+  deliveryNotesApi,
+  loyaltyApi,
+  budgetsApi,
+  landedCostsApi,
+  stockTransfersApi,
+  serialNumbersApi,
+  warrantiesApi,
+  paymentGatewaysApi,
+  customReportsApi,
+  scheduledReportsApi,
 } from "@/lib/api";
 
 /**
@@ -67,6 +95,20 @@ export async function hydrateAll(): Promise<void> {
     hydrateAssets(),
     hydrateAdvances(),
     hydrateAlerts(),
+    hydratePaymentVouchers(),
+    hydrateSalesReturns(),
+    hydratePurchaseReturns(),
+    hydratePriceLists(),
+    hydrateDeliveryNotes(),
+    hydrateLoyalty(),
+    hydrateBudgets(),
+    hydrateLandedCosts(),
+    hydrateStockTransfers(),
+    hydrateSerialNumbers(),
+    hydrateWarranties(),
+    hydratePaymentGateways(),
+    hydrateCustomReports(),
+    hydrateScheduledReports(),
   ]);
 }
 
@@ -299,6 +341,132 @@ export async function hydrateAlerts(): Promise<void> {
     const summary = await alertsApi().summary();
     // Alerts are fetched on demand by the alerts page; nothing to persist here.
     void summary;
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydratePaymentVouchers(): Promise<void> {
+  try {
+    const vouchers = await paymentVouchersApi().list();
+    usePaymentVouchersStore.getState().hydrate(vouchers);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateSalesReturns(): Promise<void> {
+  try {
+    const returns = await salesReturnsApi().list();
+    useSalesReturnsStore.getState().hydrate(returns);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydratePurchaseReturns(): Promise<void> {
+  try {
+    const returns = await purchaseReturnsApi().list();
+    usePurchaseReturnsStore.getState().hydrate(returns);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydratePriceLists(): Promise<void> {
+  try {
+    const lists = await priceListsApi().list();
+    usePriceListsStore.getState().hydrate(lists);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateDeliveryNotes(): Promise<void> {
+  try {
+    const notes = await deliveryNotesApi().list();
+    useDeliveryNotesStore.getState().hydrate(notes);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateLoyalty(): Promise<void> {
+  try {
+    const accounts = await loyaltyApi().listAccounts();
+    useLoyaltyStore.getState().hydrate(accounts);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateBudgets(): Promise<void> {
+  try {
+    const budgets = await budgetsApi().list();
+    useBudgetsStore.getState().hydrate(budgets);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateLandedCosts(): Promise<void> {
+  try {
+    const costs = await landedCostsApi().list();
+    useLandedCostsStore.getState().hydrate(costs);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateStockTransfers(): Promise<void> {
+  try {
+    const transfers = await stockTransfersApi().list();
+    useStockTransfersStore.getState().hydrate(transfers);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateSerialNumbers(): Promise<void> {
+  try {
+    const numbers = await serialNumbersApi().list();
+    useSerialNumbersStore.getState().hydrate(numbers);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateWarranties(): Promise<void> {
+  try {
+    const warranties = await warrantiesApi().list();
+    useWarrantiesStore.getState().hydrate(warranties);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydratePaymentGateways(): Promise<void> {
+  try {
+    const configs = await paymentGatewaysApi().listConfigs();
+    usePaymentGatewaysStore.getState().hydrate(configs);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateCustomReports(): Promise<void> {
+  try {
+    const reports = await customReportsApi().list();
+    useCustomReportsStore.getState().hydrate(reports);
+  } catch {
+    // keep existing data
+  }
+}
+
+export async function hydrateScheduledReports(): Promise<void> {
+  try {
+    const reports = await scheduledReportsApi().list();
+    useScheduledReportsStore.getState().hydrate(reports);
   } catch {
     // keep existing data
   }

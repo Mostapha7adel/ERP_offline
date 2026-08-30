@@ -95,6 +95,16 @@ const ALL_PERMISSIONS: PermissionKey[] = [
   "barcodes.view",
   "barcodes.create",
   "barcodes.delete",
+  "stock-transfers.view",
+  "stock-transfers.create",
+  "stock-transfers.update",
+  "serial-numbers.view",
+  "serial-numbers.create",
+  "warranties.view",
+  "warranties.create",
+  "warranties.claim",
+  "payment-gateways.view",
+  "payment-gateways.create",
 ];
 
 const VIEW_ONLY: PermissionKey[] = ALL_PERMISSIONS.filter((p) =>
@@ -238,6 +248,8 @@ export const permissionLabels: Record<PermissionKey, string> = {
   "warranties.claim": "Claim Warranties",
   "payment-gateways.view": "View Payment Gateways",
   "payment-gateways.create": "Manage Payment Gateways",
+  "period-close.view": "View Period Close",
+  "period-close.create": "Manage Period Close",
 };
 
 export function hasPermission(

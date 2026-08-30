@@ -78,6 +78,7 @@ import type {
   BranchProfitItem,
   CustomReport,
   ScheduledReport,
+  PeriodClose,
 } from "@/types/domain";
 
 // ---- Auth ----
@@ -1637,6 +1638,11 @@ export function paymentVouchersApi() {
     remove(id: string): Promise<{ id: string }> {
       return api.delete<{ id: string }>(`/payment-vouchers/${id}`);
     },
+    void(id: string): Promise<PaymentVoucher> {
+      return api
+        .post<Parameters<typeof mapPaymentVoucher>[0]>(`/payment-vouchers/${id}/void`)
+        .then(mapPaymentVoucher);
+    },
   };
 }
 
@@ -2043,17 +2049,17 @@ export function serialNumbersApi() {
       return api.post<SerialNumber>("/serial-numbers", input);
     },
     bulkCreate(input: SerialNumberBulkInput): Promise<SerialNumber[]> {
-      return api.post<SerialNumber[]>("/serial-numbers/bulk", input);
+      return api.post<SerialNumber[]>("/serial-numbers/bulk-create", input);
     },
     assign(input: SerialNumberAssignInput): Promise<SerialNumber> {
-      return api.post<SerialNumber>(`/serial-numbers/${input.serialNumberId}/assign`, {
+      return api.post<SerialNumber>("/serial-numbers/assign", {
+        serialNumberId: input.serialNumberId,
         invoiceId: input.invoiceId,
-        customerId: input.customerId,
       });
     },
     returnSerial(input: SerialNumberReturnInput): Promise<SerialNumber> {
-      return api.post<SerialNumber>(`/serial-numbers/${input.serialNumberId}/return`, {
-        invoiceId: input.invoiceId,
+      return api.post<SerialNumber>("/serial-numbers/return", {
+        serialNumberId: input.serialNumberId,
       });
     },
   };
@@ -2279,6 +2285,26 @@ export function paymentGatewaysApi() {
         { query: query as Record<string, string | number | boolean> | undefined },
       );
       return res.data;
+    },
+  };
+}
+
+// ---- Period Close ----
+
+export function periodCloseApi() {
+  return {
+    async list(): Promise<PeriodClose[]> {
+      const res = await api.getList<PeriodClose>("/period-close?limit=100");
+      return res.data;
+    },
+    async getByPeriod(period: string): Promise<PeriodClose> {
+      return api.get<PeriodClose>(`/period-close/${period}`);
+    },
+    close(input: { period: string; notes?: string }): Promise<PeriodClose> {
+      return api.post<PeriodClose>("/period-close/close", input);
+    },
+    open(input: { period: string }): Promise<PeriodClose> {
+      return api.post<PeriodClose>("/period-close/open", input);
     },
   };
 }

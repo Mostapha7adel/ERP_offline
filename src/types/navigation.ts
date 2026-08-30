@@ -101,6 +101,8 @@ export type PermissionKey =
   | "warranties.claim"
   | "payment-gateways.view"
   | "payment-gateways.create"
+  | "period-close.view"
+  | "period-close.create"
   | "alerts.view"
   | "import.create"
   | "share.create";

@@ -236,6 +236,7 @@ model Company {
   paymentGatewayTransactions PaymentGatewayTransaction[]
   customReports    CustomReport[]
   scheduledReports ScheduledReport[]
+  periodCloses     PeriodClose[]
 
   @@index([name])
 }
@@ -1462,6 +1463,7 @@ model PaymentVoucher {
   companyId   String
   number      String
   type        String        // "receipt" | "payment"
+  status      String        @default("active") // "active" | "void"
   partyId     String?
   partyType   String?       // "customer" | "supplier"
   invoiceId   String?
@@ -1769,6 +1771,8 @@ model SerialNumber {
   warehouseId  String
   invoiceId    String?
   createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  deletedAt    DateTime?
 
   company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -1855,6 +1859,7 @@ model PaymentGatewayTransaction {
   metadata        String?  // JSON
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
 
   company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   gatewayConfig PaymentGatewayConfig @relation(fields: [gatewayConfigId], references: [id], onDelete: Cascade)
@@ -1948,4 +1953,25 @@ model ScheduledReport {
   @@unique([companyId, name])
   @@index([companyId, isActive])
   @@index([nextRunAt])
+}
+
+// -----------------------------------------------------------------------------
+// Period Close (monthly close/open of accounting periods)
+// -----------------------------------------------------------------------------
+
+model PeriodClose {
+  id        String    @id @default(uuid())
+  companyId String
+  period    String    // "YYYY-MM"
+  status    String    @default("open") // "open" | "closed"
+  closedAt  DateTime?
+  closedBy  String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, period])
+  @@index([companyId, status])
 }

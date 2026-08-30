@@ -63,6 +63,7 @@ import {
   BranchProfitPage,
   CustomReportsPage,
   ScheduledReportsPage,
+  PeriodClosePage,
 } from "@/features";
 
 /**
@@ -123,6 +124,7 @@ const router = createHashRouter([
       { path: "branch-profit", element: <BranchProfitPage /> },
       { path: "custom-reports", element: <CustomReportsPage /> },
       { path: "scheduled-reports", element: <ScheduledReportsPage /> },
+      { path: "period-close", element: <PeriodClosePage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "users", element: <SuperAdminOnly><UsersPage /></SuperAdminOnly> },
       { path: "profile", element: <ProfilePage /> },

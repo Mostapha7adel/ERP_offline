@@ -29,6 +29,7 @@ export const paymentVoucherSchema = z.object({
   id: z.string(),
   number: z.string(),
   type: z.enum(["receipt", "payment"]),
+  status: z.string().default("active"),
   partyId: z.string().optional(),
   partyType: z.enum(["customer", "supplier"]).optional(),
   invoiceId: z.string().optional(),
