@@ -40,3 +40,10 @@ export { SerialNumbersPage } from "@/features/serial-numbers/serial-numbers-page
 export { WarrantiesPage } from "@/features/warranties/warranties-page";
 export { ProfitReportPage } from "@/features/profit-report/profit-report-page";
 export { PaymentGatewaysPage } from "@/features/payment-gateways/payment-gateways-page";
+export { GeneralLedgerPage } from "@/features/general-ledger/general-ledger-page";
+export { PurchaseReportsPage } from "@/features/purchase-reports/purchase-reports-page";
+export { CurrencyGainLossPage } from "@/features/currency-gain-loss/currency-gain-loss-page";
+export { PeriodComparisonPage } from "@/features/period-comparison/period-comparison-page";
+export { BranchProfitPage } from "@/features/branch-profit/branch-profit-page";
+export { CustomReportsPage } from "@/features/custom-reports/custom-reports-page";
+export { ScheduledReportsPage } from "@/features/scheduled-reports/scheduled-reports-page";

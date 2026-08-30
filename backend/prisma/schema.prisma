@@ -234,6 +234,8 @@ model Company {
   warranties        Warranty[]
   paymentGatewayConfigs      PaymentGatewayConfig[]
   paymentGatewayTransactions PaymentGatewayTransaction[]
+  customReports    CustomReport[]
+  scheduledReports ScheduledReport[]
 
   @@index([name])
 }
@@ -1884,4 +1886,66 @@ model AuditLog {
   @@index([actorId])
   @@index([resource, resourceId])
   @@index([action])
+}
+
+// -----------------------------------------------------------------------------
+// Custom Reports (user-defined report definitions)
+// -----------------------------------------------------------------------------
+
+model CustomReport {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  type        String   // "sales" | "purchases" | "inventory" | "financial" | "custom"
+  config      String?  // JSON: filters, columns, grouping, etc.
+  isPublic    Boolean  @default(false)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  company  Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scheduled ScheduledReport[]
+
+  @@unique([companyId, name])
+  @@index([companyId, type])
+}
+
+// -----------------------------------------------------------------------------
+// Scheduled Reports (automated report execution)
+// -----------------------------------------------------------------------------
+
+enum ScheduleFrequency {
+  daily
+  weekly
+  monthly
+  quarterly
+  yearly
+}
+
+model ScheduledReport {
+  id              String              @id @default(uuid())
+  companyId       String
+  name            String
+  customReportId  String?
+  frequency       ScheduleFrequency
+  dayOfWeek       Int?                // 0-6 for weekly
+  dayOfMonth      Int?                // 1-31 for monthly/quarterly
+  timeOfDay       String              @default("09:00") // HH:mm
+  params          String?             // JSON: report parameters/filters
+  isActive        Boolean             @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  createdBy       String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customReport CustomReport? @relation(fields: [customReportId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+  @@index([nextRunAt])
 }

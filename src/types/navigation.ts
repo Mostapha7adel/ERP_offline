@@ -45,6 +45,7 @@ export type PermissionKey =
   | "accounting.view"
   | "accounting.post"
   | "reports.view"
+  | "reports.create"
   | "users.view"
   | "users.create"
   | "users.update"

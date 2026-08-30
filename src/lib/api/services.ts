@@ -69,6 +69,15 @@ import type {
   ProfitReportItem,
   PaymentGatewayConfig,
   PaymentGatewayTransaction,
+  GeneralLedgerReport,
+  PurchaseBySupplier,
+  PurchaseByCategory,
+  PurchaseTrend,
+  CurrencyGainLossItem,
+  PeriodComparisonReport,
+  BranchProfitItem,
+  CustomReport,
+  ScheduledReport,
 } from "@/types/domain";
 
 // ---- Auth ----
@@ -2099,6 +2108,142 @@ export function profitReportApi() {
       return api.get<ProfitReportItem[]>("/reports/profit-by-product", {
         query: range ? { ...range } : undefined,
       });
+    },
+  };
+}
+
+// ---- General Ledger ----
+
+export function generalLedgerApi() {
+  return {
+    getLedger(accountId: string, dateFrom?: string, dateTo?: string): Promise<GeneralLedgerReport> {
+      return api.get<GeneralLedgerReport>("/reports/general-ledger", {
+        query: { accountId, ...(dateFrom ? { dateFrom } : {}), ...(dateTo ? { dateTo } : {}) },
+      });
+    },
+  };
+}
+
+// ---- Purchase Reports ----
+
+export function purchaseReportApi() {
+  return {
+    bySupplier(dateFrom?: string, dateTo?: string): Promise<PurchaseBySupplier[]> {
+      return api.get<PurchaseBySupplier[]>("/reports/purchases/by-supplier", {
+        query: { ...(dateFrom ? { dateFrom } : {}), ...(dateTo ? { dateTo } : {}) },
+      });
+    },
+    byCategory(dateFrom?: string, dateTo?: string): Promise<PurchaseByCategory[]> {
+      return api.get<PurchaseByCategory[]>("/reports/purchases/by-category", {
+        query: { ...(dateFrom ? { dateFrom } : {}), ...(dateTo ? { dateTo } : {}) },
+      });
+    },
+    trend(dateFrom?: string, dateTo?: string): Promise<PurchaseTrend[]> {
+      return api.get<PurchaseTrend[]>("/reports/purchases/trend", {
+        query: { ...(dateFrom ? { dateFrom } : {}), ...(dateTo ? { dateTo } : {}) },
+      });
+    },
+  };
+}
+
+// ---- Currency Gain/Loss ----
+
+export function currencyGainLossApi() {
+  return {
+    getReport(dateFrom?: string, dateTo?: string): Promise<CurrencyGainLossItem[]> {
+      return api.get<CurrencyGainLossItem[]>("/reports/currency-gain-loss", {
+        query: { ...(dateFrom ? { dateFrom } : {}), ...(dateTo ? { dateTo } : {}) },
+      });
+    },
+  };
+}
+
+// ---- Period Comparison ----
+
+export function periodComparisonApi() {
+  return {
+    compare(
+      period1From: string,
+      period1To: string,
+      period2From: string,
+      period2To: string,
+    ): Promise<PeriodComparisonReport> {
+      return api.get<PeriodComparisonReport>("/reports/period-comparison", {
+        query: {
+          "period1From": period1From,
+          "period1To": period1To,
+          "period2From": period2From,
+          "period2To": period2To,
+        },
+      });
+    },
+  };
+}
+
+// ---- Branch Profit ----
+
+export function branchProfitApi() {
+  return {
+    getReport(dateFrom?: string, dateTo?: string, costCenterId?: string): Promise<BranchProfitItem[]> {
+      return api.get<BranchProfitItem[]>("/reports/branch-profit", {
+        query: {
+          ...(dateFrom ? { dateFrom } : {}),
+          ...(dateTo ? { dateTo } : {}),
+          ...(costCenterId ? { costCenterId } : {}),
+        },
+      });
+    },
+  };
+}
+
+// ---- Custom Reports ----
+
+export function customReportsApi() {
+  return {
+    async list(): Promise<CustomReport[]> {
+      const res = await api.getList<CustomReport>("/custom-reports?limit=100");
+      return res.data;
+    },
+    async getById(id: string): Promise<CustomReport> {
+      return api.get<CustomReport>(`/custom-reports/${id}`);
+    },
+    create(input: Omit<CustomReport, "id" | "createdBy" | "createdAt" | "updatedAt">): Promise<CustomReport> {
+      return api.post<CustomReport>("/custom-reports", input);
+    },
+    update(id: string, input: Partial<Omit<CustomReport, "id" | "createdBy" | "createdAt" | "updatedAt">>): Promise<CustomReport> {
+      return api.patch<CustomReport>(`/custom-reports/${id}`, input);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/custom-reports/${id}`);
+    },
+    execute(id: string): Promise<unknown[]> {
+      return api.get<unknown[]>(`/custom-reports/${id}/execute`);
+    },
+  };
+}
+
+// ---- Scheduled Reports ----
+
+export function scheduledReportsApi() {
+  return {
+    async list(): Promise<ScheduledReport[]> {
+      const res = await api.getList<ScheduledReport>("/scheduled-reports?limit=100");
+      return res.data;
+    },
+    async getById(id: string): Promise<ScheduledReport> {
+      return api.get<ScheduledReport>(`/scheduled-reports/${id}`);
+    },
+    create(input: Omit<ScheduledReport, "id" | "createdBy" | "createdAt" | "updatedAt" | "lastRunDate">): Promise<ScheduledReport> {
+      return api.post<ScheduledReport>("/scheduled-reports", input);
+    },
+    update(id: string, input: Partial<Omit<ScheduledReport, "id" | "createdBy" | "createdAt" | "updatedAt">>): Promise<ScheduledReport> {
+      return api.patch<ScheduledReport>(`/scheduled-reports/${id}`, input);
+    },
+    remove(id: string): Promise<{ id: string }> {
+      return api.delete<{ id: string }>(`/scheduled-reports/${id}`);
+    },
+    runNow(id: string): Promise<{ success: boolean }> {
+      return api.post<{ success: boolean }>(`/scheduled-reports/${id}/run`, {});
     },
   };
 }

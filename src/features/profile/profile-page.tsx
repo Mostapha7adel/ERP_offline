@@ -142,6 +142,7 @@ const PERMISSION_LABELS_AR: Record<PermissionKey, string> = {
   "notes.update": "تعديل الإشعارات",
   "notes.void": "إلغاء الإشعارات",
   "reports.view": "عرض التقارير",
+  "reports.create": "إنشاء التقارير",
   "users.view": "عرض المستخدمين",
   "users.create": "إنشاء مستخدمين",
   "users.update": "تعديل المستخدمين",

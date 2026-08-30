@@ -40,6 +40,13 @@ import { registerStockTransfersController } from "./stock-transfers/stock-transf
 import { registerSerialNumbersController } from "./serial-numbers/serial-number.controller.js";
 import { registerWarrantiesController } from "./warranties/warranty.controller.js";
 import { registerProfitReportController } from "./reports/profit-report.controller.js";
+import { registerGeneralLedgerController } from "./reports/general-ledger.controller.js";
+import { registerPurchaseReportController } from "./reports/purchase-report.controller.js";
+import { registerCurrencyGainLossController } from "./reports/currency-gain-loss.controller.js";
+import { registerPeriodComparisonController } from "./reports/period-comparison.controller.js";
+import { registerBranchProfitController } from "./reports/branch-profit.controller.js";
+import { registerCustomReportController } from "./custom-reports/custom-report.controller.js";
+import { registerScheduledReportController } from "./scheduled-reports/scheduled-report.controller.js";
 import { registerPaymentGatewaysController } from "./payment-gateways/payment-gateway.controller.js";
 
 /**
@@ -95,6 +102,13 @@ export async function registerModules(app: FastifyInstance): Promise<void> {
       registerSerialNumbersController(scoped);
       registerWarrantiesController(scoped);
       registerProfitReportController(scoped);
+      registerGeneralLedgerController(scoped);
+      registerPurchaseReportController(scoped);
+      registerCurrencyGainLossController(scoped);
+      registerPeriodComparisonController(scoped);
+      registerBranchProfitController(scoped);
+      registerCustomReportController(scoped);
+      registerScheduledReportController(scoped);
       registerPaymentGatewaysController(scoped);
     },
     { prefix: "/api/v1" },

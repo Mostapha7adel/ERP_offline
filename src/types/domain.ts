@@ -929,3 +929,135 @@ export interface PaymentGatewayTransaction {
   reference?: string;
   createdAt: ISOString;
 }
+
+// ---- General Ledger ----
+
+export interface GeneralLedgerEntry {
+  id: ID;
+  date: ISOString;
+  journalNumber: string;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface GeneralLedgerReport {
+  accountId: ID;
+  accountCode: string;
+  accountName: string;
+  dateFrom: string;
+  dateTo: string;
+  openingBalance: number;
+  closingBalance: number;
+  entries: GeneralLedgerEntry[];
+}
+
+// ---- Purchase Reports ----
+
+export interface PurchaseBySupplier {
+  supplierId: ID;
+  supplierName: string;
+  totalAmount: number;
+  invoiceCount: number;
+  averageInvoice: number;
+}
+
+export interface PurchaseByCategory {
+  category: string;
+  totalAmount: number;
+  itemPercentage: number;
+}
+
+export interface PurchaseTrend {
+  period: string;
+  totalAmount: number;
+  invoiceCount: number;
+}
+
+// ---- Currency Gain/Loss ----
+
+export interface CurrencyGainLossItem {
+  id: ID;
+  invoiceId: ID;
+  invoiceNumber: string;
+  currency: string;
+  invoiceAmount: number;
+  rateAtInvoice: number;
+  rateAtPayment: number;
+  gainOrLoss: number;
+}
+
+// ---- Period Comparison ----
+
+export interface PeriodComparisonReport {
+  period1: {
+    from: string;
+    to: string;
+    revenue: number;
+    expenses: number;
+    profit: number;
+  };
+  period2: {
+    from: string;
+    to: string;
+    revenue: number;
+    expenses: number;
+    profit: number;
+  };
+  changes: {
+    revenueChange: number;
+    expensesChange: number;
+    profitChange: number;
+  };
+}
+
+// ---- Branch Profit ----
+
+export interface BranchProfitItem {
+  branchId: ID;
+  branchName: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+  margin: number;
+}
+
+// ---- Custom Reports ----
+
+export type CustomReportDataSource = "sales" | "purchases" | "inventory" | "accounting";
+
+export type CustomReportStatus = "active" | "draft";
+
+export interface CustomReport {
+  id: ID;
+  name: string;
+  description?: string;
+  dataSource: CustomReportDataSource;
+  columns: string[];
+  filters: Record<string, string>;
+  createdBy: ID;
+  status: CustomReportStatus;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+}
+
+// ---- Scheduled Reports ----
+
+export type ScheduledReportFrequency = "daily" | "weekly" | "monthly" | "quarterly";
+
+export type ScheduledReportStatus = "active" | "paused";
+
+export interface ScheduledReport {
+  id: ID;
+  name: string;
+  reportType: string;
+  frequency: ScheduledReportFrequency;
+  nextRunDate: ISOString;
+  lastRunDate?: ISOString;
+  recipients: string[];
+  status: ScheduledReportStatus;
+  createdBy: ID;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+}

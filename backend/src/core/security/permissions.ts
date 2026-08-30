@@ -139,6 +139,9 @@ export const PERMISSIONS = {
   "import:create": "import:create",
   "share:read": "share:read",
 
+  // Reports (CRUD for custom/scheduled reports)
+  "reports:create": "reports:create",
+
   // Tax reports
   "reports:tax": "reports:tax",
 

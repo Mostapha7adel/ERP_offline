@@ -56,6 +56,13 @@ import {
   WarrantiesPage,
   ProfitReportPage,
   PaymentGatewaysPage,
+  GeneralLedgerPage,
+  PurchaseReportsPage,
+  CurrencyGainLossPage,
+  PeriodComparisonPage,
+  BranchProfitPage,
+  CustomReportsPage,
+  ScheduledReportsPage,
 } from "@/features";
 
 /**
@@ -109,6 +116,13 @@ const router = createHashRouter([
       { path: "warranties", element: <WarrantiesPage /> },
       { path: "profit-report", element: <ProfitReportPage /> },
       { path: "payment-gateways", element: <PaymentGatewaysPage /> },
+      { path: "general-ledger", element: <GeneralLedgerPage /> },
+      { path: "purchase-reports", element: <PurchaseReportsPage /> },
+      { path: "currency-gain-loss", element: <CurrencyGainLossPage /> },
+      { path: "period-comparison", element: <PeriodComparisonPage /> },
+      { path: "branch-profit", element: <BranchProfitPage /> },
+      { path: "custom-reports", element: <CustomReportsPage /> },
+      { path: "scheduled-reports", element: <ScheduledReportsPage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "users", element: <SuperAdminOnly><UsersPage /></SuperAdminOnly> },
       { path: "profile", element: <ProfilePage /> },
