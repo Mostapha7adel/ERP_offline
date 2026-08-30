@@ -54,6 +54,13 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
     });
   }
 
+  if (error.code === "RATE_LIMITED" || (error.statusCode && error.statusCode === 429)) {
+    return send(reply, 429, {
+      success: false,
+      error: { code: "RATE_LIMITED", message: error.message ?? "Rate limit exceeded" },
+    });
+  }
+
   if (error.statusCode && error.statusCode < 500) {
     // e.g. 404 from @fastify/sensible, 429 from rate-limit, etc.
     return send(reply, error.statusCode, {

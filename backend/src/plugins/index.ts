@@ -20,7 +20,7 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
   });
 
   await app.register(rateLimit, {
-    max: 300,
+    max: 2000,
     timeWindow: "1 minute",
     errorResponseBuilder: (req, context) => ({
       success: false,
