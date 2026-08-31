@@ -488,8 +488,10 @@ export async function hydratePeriodClose(): Promise<void> {
 
 export async function hydratePageVisibility(): Promise<void> {
   try {
-    const hiddenPages = await pageVisibilityApi().get();
-    useSettingsStore.getState().setHiddenPages(hiddenPages);
+    const result = await pageVisibilityApi().get();
+    if (Array.isArray(result)) {
+      useSettingsStore.getState().setHiddenPages(result);
+    }
   } catch {
     // keep existing data
   }
