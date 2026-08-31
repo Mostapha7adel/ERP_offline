@@ -81,8 +81,8 @@ export function PageManagerPage() {
   const save = async () => {
     setSaving(true);
     try {
-      const updated = await pageVisibilityApi().update(localHidden);
-      setHiddenPages(Array.isArray(updated) ? updated : []);
+      await pageVisibilityApi().update(localHidden);
+      setHiddenPages([...localHidden]);
       setSaved(true);
       toast.success(t("Page visibility saved", "تم حفظ إعدادات ظهور الصفحات"));
       window.setTimeout(() => setSaved(false), 2000);

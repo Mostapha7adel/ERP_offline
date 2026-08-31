@@ -88,8 +88,9 @@ export class SettingsService {
   async getHiddenPages(): Promise<string[]> {
     const raw = await settingsRepository.get("page-visibility.hiddenPages");
     if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
       return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
