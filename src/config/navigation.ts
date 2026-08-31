@@ -42,6 +42,7 @@ import {
   GitCompareArrows,
   FileCog,
   Lock,
+  PanelLeftClose,
   type LucideIcon,
 } from "lucide-react";
 import type { NavSection } from "@/types/navigation";
@@ -419,6 +420,15 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Settings,
         permission: undefined,
         keywords: "preferences company profile configuration",
+      },
+      {
+        title: "Page Manager",
+        titleAr: "مدير الصفحات",
+        href: "/app/settings/pages",
+        icon: PanelLeftClose,
+        permission: "settings.update",
+        superAdminOnly: true,
+        keywords: "page manager visibility hide show pages sidebar navigation",
       },
       {
         title: "Backup & Restore",

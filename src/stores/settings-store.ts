@@ -12,8 +12,10 @@ interface SettingsState {
   company: CompanyProfile;
   preferences: AppPreferences;
   backupHistory: BackupMeta[];
+  hiddenPages: string[];
   updateCompany: (patch: Partial<CompanyProfile>) => void;
   updatePreferences: (patch: Partial<AppPreferences>) => void;
+  setHiddenPages: (pages: string[]) => void;
   recordBackup: (name: string, size: number, type: "manual" | "auto") => void;
   removeBackup: (id: string) => void;
   reset: () => void;
@@ -25,12 +27,14 @@ export const useSettingsStore = create<SettingsState>()(
       company: DEFAULT_COMPANY,
       preferences: DEFAULT_PREFERENCES,
       backupHistory: [],
+      hiddenPages: [],
       updateCompany: (patch) =>
         set((state) => ({ company: { ...state.company, ...patch } })),
       updatePreferences: (patch) =>
         set((state) => ({
           preferences: { ...state.preferences, ...patch },
         })),
+      setHiddenPages: (pages) => set({ hiddenPages: pages }),
       recordBackup: (name, size, type) =>
         set((state) => ({
           backupHistory: [
@@ -50,7 +54,7 @@ export const useSettingsStore = create<SettingsState>()(
           backupHistory: state.backupHistory.filter((b) => b.id !== id),
         })),
       reset: () =>
-        set({ company: DEFAULT_COMPANY, preferences: DEFAULT_PREFERENCES, backupHistory: [] }),
+        set({ company: DEFAULT_COMPANY, preferences: DEFAULT_PREFERENCES, backupHistory: [], hiddenPages: [] }),
     }),
     { name: "ledgerflow:settings" },
   ),

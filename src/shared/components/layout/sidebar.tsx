@@ -6,6 +6,7 @@ import { useUIStore } from "@/stores/ui-store";
 import { useCan, useAuthStore } from "@/stores/auth-store";
 import { useNotificationsStore } from "@/stores/notifications-store";
 import { useLocaleStore } from "@/stores/locale-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { cn } from "@/lib/utils";
 import { Brand } from "@/shared/components/layout/brand";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/shared/components/ui/tooltip";
@@ -98,11 +99,15 @@ export function Sidebar() {
   const isSuperAdmin = useAuthStore((s) => s.isSuperAdmin);
   const unread = useNotificationsStore((s) => s.unreadCount());
   const locale = useLocaleStore((s) => s.locale);
+  const hiddenPages = useSettingsStore((s) => s.hiddenPages);
 
   const filteredSections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter(
-      (item) => can(item.permission) && (!item.superAdminOnly || isSuperAdmin),
+      (item) =>
+        can(item.permission) &&
+        (!item.superAdminOnly || isSuperAdmin) &&
+        !hiddenPages.includes(item.href.replace("/app/", "")),
     ),
   })).filter((section) => section.items.length > 0);
 

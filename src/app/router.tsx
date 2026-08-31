@@ -66,6 +66,8 @@ import {
   PeriodClosePage,
 } from "@/features";
 
+import { PageManagerPage } from "@/features/page-manager/page-manager-page";
+
 /**
  * Only the super admin (wildcard) may manage users and roles; every other role
  * sees the Profile page instead and must never reach these admin routes.
@@ -129,6 +131,7 @@ const router = createHashRouter([
       { path: "users", element: <SuperAdminOnly><UsersPage /></SuperAdminOnly> },
       { path: "profile", element: <ProfilePage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "settings/pages", element: <SuperAdminOnly><PageManagerPage /></SuperAdminOnly> },
       { path: "backup", element: <BackupPage /> },
       { path: "alerts", element: <AlertsPage /> },
       { path: "import", element: <ImportPage /> },

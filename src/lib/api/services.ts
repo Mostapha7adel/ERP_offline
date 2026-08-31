@@ -2308,3 +2308,18 @@ export function periodCloseApi() {
     },
   };
 }
+
+// ---- Page Visibility (Admin) ----
+
+export function pageVisibilityApi() {
+  return {
+    async get(): Promise<string[]> {
+      const res = await api.get<{ hiddenPages: string[] }>("/settings/page-visibility") as unknown as { data: { hiddenPages: string[] } };
+      return res.data.hiddenPages;
+    },
+    async update(hiddenPages: string[]): Promise<string[]> {
+      const res = await api.put<{ hiddenPages: string[] }>("/settings/page-visibility", { hiddenPages }) as unknown as { data: { hiddenPages: string[] } };
+      return res.data.hiddenPages;
+    },
+  };
+}

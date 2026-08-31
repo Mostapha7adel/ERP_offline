@@ -84,6 +84,22 @@ export class SettingsService {
     if (value === undefined) throw AppError.notFound(`Setting "${key}" not found`);
     return { key, value };
   }
+
+  async getHiddenPages(): Promise<string[]> {
+    const raw = await settingsRepository.get("page-visibility.hiddenPages");
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async setHiddenPages(pages: string[], audit: AuditContext): Promise<void> {
+    await settingsRepository.set("page-visibility.hiddenPages", JSON.stringify(pages), "page-visibility");
+    await auditService.log(audit, "update:page-visibility", "settings");
+  }
 }
 
 export const settingsService = new SettingsService();
