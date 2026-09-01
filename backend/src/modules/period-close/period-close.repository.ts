@@ -29,11 +29,11 @@ export class PeriodCloseRepository extends PrismaRepository<PeriodClose> {
     return row ? this.toEntity(row as Row) : undefined;
   }
 
-  async findClosedBefore(period: string): Promise<PeriodClose | undefined> {
+  async findOpenBefore(period: string): Promise<PeriodClose | undefined> {
     const row = await this.delegate.findFirst({
       where: {
         ...this.baseWhere(),
-        status: "closed",
+        status: "open",
         period: { lt: period },
       },
       orderBy: { period: "desc" },

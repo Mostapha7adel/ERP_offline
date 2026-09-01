@@ -70,6 +70,7 @@ import {
   scheduledReportsApi,
   periodCloseApi,
   pageVisibilityApi,
+  pageAssignmentApi,
 } from "@/lib/api";
 
 /**
@@ -114,6 +115,7 @@ export async function hydrateAll(): Promise<void> {
     hydrateScheduledReports(),
     hydratePeriodClose(),
     hydratePageVisibility(),
+    hydrateMyPages(),
   ]);
 }
 
@@ -494,5 +496,14 @@ export async function hydratePageVisibility(): Promise<void> {
     }
   } catch {
     // keep existing data
+  }
+}
+
+export async function hydrateMyPages(): Promise<void> {
+  try {
+    const result = await pageAssignmentApi().getMyPages();
+    useSettingsStore.getState().setMyPages(result.pages, result.source);
+  } catch {
+    useSettingsStore.getState().setMyPages(null, "none");
   }
 }

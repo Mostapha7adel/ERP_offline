@@ -204,7 +204,12 @@ export function registerCustomReportController(app: FastifyInstance): void {
     });
     if (!report) throw AppError.notFound("Custom report not found");
 
-    const config = report.config ? JSON.parse(report.config) as Record<string, unknown> : {};
+    let config: Record<string, unknown> = {};
+    try {
+      config = report.config ? JSON.parse(report.config) as Record<string, unknown> : {};
+    } catch {
+      throw AppError.badRequest("Invalid report configuration JSON");
+    }
     const dateFrom = config.dateFrom ? new Date(String(config.dateFrom)) : new Date(new Date().setMonth(new Date().getMonth() - 12));
     const dateTo = config.dateTo ? new Date(String(config.dateTo)) : new Date();
 

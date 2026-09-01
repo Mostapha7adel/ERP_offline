@@ -2,6 +2,7 @@ import { invoiceRepository } from "../trade/invoice.repository.js";
 import { partyRepository } from "../parties/party.repository.js";
 import { noteRepository } from "../notes/note.repository.js";
 import { treasuryTransactionRepository } from "../treasury/treasury.repository.js";
+import { AppError } from "../../core/errors/app-error.js";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -19,7 +20,7 @@ export class StatementService {
   /** Full period (defaults to all history) statement for a party with running balance. */
   async forParty(partyId: string, from?: string, to?: string) {
     const party = await partyRepository.findById(partyId);
-    if (!party) throw new Error("Party not found");
+    if (!party) throw AppError.notFound("Party not found");
     const kind = party.type === "customer" ? "sales" : "purchase";
 
     const entries: Array<{ date: string; kind: string; ref: string; description: string; debit: number; credit: number }> = [];

@@ -2,10 +2,12 @@ import type { FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
+import compress from "@fastify/compress";
 import fastifyJwt from "@fastify/jwt";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 import { env, corsOrigins } from "../config/env.js";
+import { registerConcurrencyLimit, registerRequestTimeout } from "./load-balancing.js";
 
 /**
  * Registers cross-cutting HTTP plugins in a fixed order.
@@ -19,6 +21,12 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
     credentials: true,
   });
 
+  // Response compression (gzip / brotli) — reduces payload size by ~70%
+  await app.register(compress, {
+    threshold: 1024, // compress responses > 1 KB
+    encodings: ["gzip", "deflate", "br"],
+  });
+
   await app.register(rateLimit, {
     max: 2000,
     timeWindow: "1 minute",
@@ -30,6 +38,10 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
       },
     }),
   });
+
+  // Concurrency limiter + request timeout
+  await app.register(registerConcurrencyLimit);
+  await app.register(registerRequestTimeout);
 
   // OpenAPI contract generation (from Zod schemas via type-provider)
   await app.register(fastifySwagger, {

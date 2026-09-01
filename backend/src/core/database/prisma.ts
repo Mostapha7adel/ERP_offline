@@ -54,6 +54,9 @@ export async function connectDb(): Promise<void> {
       await prisma.$queryRawUnsafe("PRAGMA journal_mode = WAL;");
       await prisma.$queryRawUnsafe("PRAGMA busy_timeout = 5000;");
       await prisma.$queryRawUnsafe("PRAGMA synchronous = NORMAL;");
+      await prisma.$queryRawUnsafe("PRAGMA cache_size = -64000;"); // 64 MB page cache
+      await prisma.$queryRawUnsafe("PRAGMA temp_store = MEMORY;");
+      await prisma.$queryRawUnsafe("PRAGMA mmap_size = 268435456;"); // 256 MB memory-mapped I/O
     } catch (pragmaError) {
       // Pragmas are best-effort; some hosted/embedded engines reject them.
       logger.warn({ pragmaError }, "Could not apply SQLite pragmas");

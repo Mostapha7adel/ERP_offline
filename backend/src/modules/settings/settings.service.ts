@@ -1,5 +1,6 @@
 import { AppError } from "../../core/errors/app-error.js";
 import { settingsRepository } from "./settings.repository.js";
+import { getDb } from "../../core/database/prisma.js";
 import {
   companySettingsSchema,
   preferencesSchema,
@@ -100,6 +101,19 @@ export class SettingsService {
   async setHiddenPages(pages: string[], audit: AuditContext): Promise<void> {
     await settingsRepository.set("page-visibility.hiddenPages", JSON.stringify(pages), "page-visibility");
     await auditService.log(audit, "update:page-visibility", "settings");
+  }
+
+  async getUserForAssignment(userId: string): Promise<{ id: string; roleId: string } | null> {
+    try {
+      const rows = await getDb().$queryRawUnsafe(
+        'SELECT "id", "roleId" FROM "User" WHERE "id" = ? LIMIT 1',
+        userId
+      ) as any[];
+      if (!rows || rows.length === 0) return null;
+      return { id: String(rows[0].id), roleId: String(rows[0].roleId) };
+    } catch {
+      return null;
+    }
   }
 }
 

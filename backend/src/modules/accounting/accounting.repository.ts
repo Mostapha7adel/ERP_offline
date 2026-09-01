@@ -1,6 +1,7 @@
 import { PrismaRepository } from "../../core/repository/base-repository.js";
 import { getDb } from "../../core/database/prisma.js";
 import { getDefaultCompanyId } from "../../core/database/company.js";
+import { AppError } from "../../core/errors/app-error.js";
 import type { Account, JournalEntry, JournalLine } from "./accounting.entity.js";
 
 type Row = Record<string, unknown>;
@@ -119,7 +120,7 @@ export class JournalEntryRepository extends PrismaRepository<JournalEntry> {
   private async resolveAccountId(accountCode: string): Promise<string> {
     const account = await getDb().account.findFirst({ where: { code: accountCode, deletedAt: null } });
     if (!account) {
-      throw new Error(`Account code "${accountCode}" does not exist`);
+      throw AppError.badRequest(`Account code "${accountCode}" does not exist`);
     }
     return account.id;
   }

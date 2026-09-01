@@ -267,6 +267,7 @@ model User {
   sessions  AuthSession[]
   auditLogs AuditLog[]    @relation("AuditActor")
   notifications Notification[] @relation("NotificationActor")
+  pageAssignment UserPageAssignment?
 
   @@unique([companyId, email])
   @@index([companyId, roleId])
@@ -288,6 +289,7 @@ model Role {
   company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   users       User[]
   permissions RolePermission[]
+  pageAssignment RolePageAssignment?
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -335,6 +337,30 @@ model RolePermission {
 
   @@unique([roleId, permissionId])
   @@index([permissionId])
+}
+
+model RolePageAssignment {
+  id     String @id @default(uuid())
+  roleId String @unique
+  pages  String @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([roleId])
+}
+
+model UserPageAssignment {
+  id     String @id @default(uuid())
+  userId String @unique
+  pages  String @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model AuthSession {

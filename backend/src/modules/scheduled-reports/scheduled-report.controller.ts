@@ -254,7 +254,12 @@ export function registerScheduledReportController(app: FastifyInstance): void {
 
     // If linked to a custom report, execute it
     if (scheduled.customReport) {
-      const config = scheduled.customReport.config ? JSON.parse(scheduled.customReport.config) as Record<string, unknown> : {};
+      let config: Record<string, unknown> = {};
+      try {
+        config = scheduled.customReport.config ? JSON.parse(scheduled.customReport.config) as Record<string, unknown> : {};
+      } catch {
+        throw AppError.badRequest("Invalid report configuration JSON");
+      }
       const dateFrom = config.dateFrom ? new Date(String(config.dateFrom)) : new Date(new Date().setMonth(new Date().getMonth() - 12));
       const dateTo = config.dateTo ? new Date(String(config.dateTo)) : new Date();
 

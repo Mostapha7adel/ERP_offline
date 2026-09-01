@@ -32,10 +32,10 @@ export class PeriodCloseService {
       throw AppError.badRequest(`Period ${validated.period} is already closed`);
     }
 
-    const unclosedBefore = await periodCloseRepository.findClosedBefore(validated.period);
-    if (unclosedBefore) {
+    const openBefore = await periodCloseRepository.findOpenBefore(validated.period);
+    if (openBefore) {
       throw AppError.badRequest(
-        `Cannot close ${validated.period}: period ${unclosedBefore.period} is still open`,
+        `Cannot close ${validated.period}: period ${openBefore.period} is still open`,
       );
     }
 
@@ -83,8 +83,8 @@ export class PeriodCloseService {
       id: existing.id,
       data: {
         status: "open",
-        closedAt: null,
-        closedBy: null,
+        closedAt: undefined,
+        closedBy: undefined,
       },
     });
     await auditService.log(audit, "open:period", "period-close", existing.id, { period: validated.period });

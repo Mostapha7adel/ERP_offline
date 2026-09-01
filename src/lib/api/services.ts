@@ -2028,12 +2028,10 @@ export interface SerialNumberBulkInput {
 export interface SerialNumberAssignInput {
   serialNumberId: string;
   invoiceId: string;
-  customerId: string;
 }
 
 export interface SerialNumberReturnInput {
   serialNumberId: string;
-  invoiceId: string;
 }
 
 export function serialNumbersApi() {
@@ -2322,6 +2320,50 @@ export function pageVisibilityApi() {
       const raw: any = await api.post("/settings/page-visibility", { hiddenPages });
       const result = raw?.data?.hiddenPages ?? raw?.hiddenPages;
       return Array.isArray(result) ? result : [];
+    },
+  };
+}
+
+// ---- Page Assignments (Admin) ----
+
+export interface RolePageAssignment {
+  roleId: string;
+  pages: string[];
+}
+
+export interface UserPageAssignment {
+  userId: string;
+  pages: string[];
+}
+
+export interface EffectivePageAssignment {
+  pages: string[] | null;
+  source: "user" | "role" | "none";
+}
+
+export function pageAssignmentApi() {
+  return {
+    async getRoleAssignments(): Promise<RolePageAssignment[]> {
+      const raw: any = await api.get("/page-assignments/roles");
+      return raw?.data ?? [];
+    },
+    async setRolePages(roleId: string, pages: string[]): Promise<void> {
+      await api.put(`/page-assignments/roles/${roleId}`, { pages });
+    },
+    async getUserAssignments(): Promise<UserPageAssignment[]> {
+      const raw: any = await api.get("/page-assignments/users");
+      return raw?.data ?? [];
+    },
+    async setUserPages(userId: string, pages: string[]): Promise<void> {
+      await api.put(`/page-assignments/users/${userId}`, { pages });
+    },
+    async getEffectivePages(userId: string): Promise<EffectivePageAssignment> {
+      const raw: any = await api.get(`/page-assignments/effective/${userId}`);
+      return raw?.data ?? { pages: null, source: "none" };
+    },
+    async getMyPages(): Promise<EffectivePageAssignment> {
+      const raw: any = await api.get("/page-assignments/my-pages");
+      return raw?.data ?? { pages: null, source: "none" };
     },
   };
 }

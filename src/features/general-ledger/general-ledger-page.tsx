@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 import { BookOpen } from "lucide-react";
 import { useGeneralLedgerStore } from "@/stores/general-ledger-store";
@@ -48,9 +48,9 @@ export function GeneralLedgerPage() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     loadAccounts();
-  });
+  }, []);
 
   const loadReport = async () => {
     if (!accountId) {

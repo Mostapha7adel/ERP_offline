@@ -29,4 +29,10 @@ export interface Preferences {
   dateFormat: string;
   notifyOnLowStock: boolean;
   notifyOnInvoiceCreated: boolean;
+  costingMethod: "average" | "fifo";
+  enforceCreditLimit: boolean;
+  autoBackupEnabled: boolean;
+  autoBackupFrequencyHours: number;
+  autoBackupRetention: number;
+  autoBackupFolder: string;
 }

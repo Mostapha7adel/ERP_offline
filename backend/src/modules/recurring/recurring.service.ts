@@ -220,8 +220,10 @@ export class RecurringInvoiceService {
           data: { lastRunAt: new Date().toISOString(), nextRunDate: addInterval(template.nextRunDate, template.frequency, template.interval) },
         });
         invoices.push(invoice.id);
-      } catch {
+      } catch (error) {
         // Skip templates that fail (e.g. missing party) rather than aborting the run.
+        const msg = error instanceof Error ? error.message : String(error);
+        void notificationService.create({ kind: "warning", title: "Recurring invoice failed", message: `Template "${template.id}" failed: ${msg}` });
       }
     }
 

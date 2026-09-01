@@ -13,9 +13,12 @@ interface SettingsState {
   preferences: AppPreferences;
   backupHistory: BackupMeta[];
   hiddenPages: string[];
+  myPages: string[] | null;
+  myPagesSource: "user" | "role" | "none";
   updateCompany: (patch: Partial<CompanyProfile>) => void;
   updatePreferences: (patch: Partial<AppPreferences>) => void;
   setHiddenPages: (pages: string[]) => void;
+  setMyPages: (pages: string[] | null, source: "user" | "role" | "none") => void;
   recordBackup: (name: string, size: number, type: "manual" | "auto") => void;
   removeBackup: (id: string) => void;
   reset: () => void;
@@ -28,6 +31,8 @@ export const useSettingsStore = create<SettingsState>()(
       preferences: DEFAULT_PREFERENCES,
       backupHistory: [],
       hiddenPages: [],
+      myPages: null,
+      myPagesSource: "none",
       updateCompany: (patch) =>
         set((state) => ({ company: { ...state.company, ...patch } })),
       updatePreferences: (patch) =>
@@ -35,6 +40,7 @@ export const useSettingsStore = create<SettingsState>()(
           preferences: { ...state.preferences, ...patch },
         })),
       setHiddenPages: (pages) => set({ hiddenPages: pages }),
+      setMyPages: (pages, source) => set({ myPages: pages, myPagesSource: source }),
       recordBackup: (name, size, type) =>
         set((state) => ({
           backupHistory: [
@@ -54,7 +60,7 @@ export const useSettingsStore = create<SettingsState>()(
           backupHistory: state.backupHistory.filter((b) => b.id !== id),
         })),
       reset: () =>
-        set({ company: DEFAULT_COMPANY, preferences: DEFAULT_PREFERENCES, backupHistory: [], hiddenPages: [] }),
+        set({ company: DEFAULT_COMPANY, preferences: DEFAULT_PREFERENCES, backupHistory: [], hiddenPages: [], myPages: null, myPagesSource: "none" }),
     }),
     { name: "ledgerflow:settings" },
   ),

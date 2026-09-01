@@ -50,7 +50,7 @@ async function buildPeriodData(db: ReturnType<typeof getDb>, companyId: string, 
   // Balance sheet from accounts
   const accounts = await db.account.findMany({
     where: { companyId, isActive: true, deletedAt: null },
-    select: { type: true, openingBalance: true },
+    select: { id: true, type: true, openingBalance: true },
   });
 
   // Get journal detail balances for the period up to `to`

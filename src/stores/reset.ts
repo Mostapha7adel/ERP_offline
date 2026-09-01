@@ -25,6 +25,17 @@ import { usePaymentGatewaysStore } from "./payment-gateways-store";
 import { useCustomReportsStore } from "./custom-reports-store";
 import { useScheduledReportsStore } from "./scheduled-reports-store";
 import { usePeriodCloseStore } from "./period-close-store";
+import { useQuotesStore } from "./quotes-store";
+import { useRecurringStore } from "./recurring-store";
+import { useNotesStore } from "./notes-store";
+import { useFiscalYearsStore } from "./fiscal-year-store";
+import { useNotificationsStore } from "./notifications-store";
+import { useProfitReportStore } from "./profit-report-store";
+import { usePeriodComparisonStore } from "./period-comparison-store";
+import { useBranchProfitStore } from "./branch-profit-store";
+import { useGeneralLedgerStore } from "./general-ledger-store";
+import { usePurchaseReportsStore } from "./purchase-reports-store";
+import { useCurrencyGainLossStore } from "./currency-gain-loss-store";
 
 /**
  * Reset every hydrated domain store to its default/empty state. Used when a
@@ -66,4 +77,15 @@ export function clearAllDomainData(): void {
   useCustomReportsStore.getState().reset();
   useScheduledReportsStore.getState().reset();
   usePeriodCloseStore.getState().reset();
+  useQuotesStore.getState().reset();
+  useRecurringStore.getState().reset();
+  useNotesStore.getState().reset();
+  useFiscalYearsStore.getState().reset();
+  useNotificationsStore.getState().reset();
+  useProfitReportStore.getState().reset();
+  usePeriodComparisonStore.getState().reset();
+  useBranchProfitStore.getState().reset();
+  useGeneralLedgerStore.getState().reset();
+  usePurchaseReportsStore.getState().reset();
+  useCurrencyGainLossStore.getState().reset();
 }

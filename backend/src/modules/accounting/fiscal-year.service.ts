@@ -5,6 +5,7 @@ import { fiscalYearCreateSchema, type FiscalYearCreateInput } from "./fiscal-yea
 import type { FiscalYear } from "./fiscal-year.entity.js";
 import type { AuditContext } from "../../core/audit/audit.service.js";
 import { auditService } from "../../core/audit/audit.service.js";
+import { runInTransaction } from "../../core/database/prisma.js";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -102,7 +103,7 @@ export class FiscalYearService {
     if (!fy) throw AppError.notFound("Fiscal year not found");
     if (fy.status === "closed") throw AppError.conflict("Fiscal year is already closed");
 
-    return (async () => {
+    return runInTransaction(async () => {
       await this.ensureRetainedEarningsAccount(audit);
       const balances = await this.balancesForRange(fy.startDate, fy.endDate);
 
@@ -161,7 +162,7 @@ export class FiscalYearService {
       });
       void auditService.log(audit, "close:fiscal-year", "accounting", id, { name: fy.name, net });
       return (updated as FiscalYear) ?? fy;
-    })();
+    });
   }
 }
 

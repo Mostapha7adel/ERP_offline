@@ -100,6 +100,7 @@ export function Sidebar() {
   const unread = useNotificationsStore((s) => s.unreadCount());
   const locale = useLocaleStore((s) => s.locale);
   const hiddenPages = useSettingsStore((s) => s.hiddenPages);
+  const myPages = useSettingsStore((s) => s.myPages);
 
   const filteredSections = NAV_SECTIONS.map((section) => ({
     ...section,
@@ -107,7 +108,12 @@ export function Sidebar() {
       (item) =>
         can(item.permission) &&
         (!item.superAdminOnly || isSuperAdmin) &&
-        (item.hiddenFromPageManager || !hiddenPages.includes(item.href.replace("/app/", ""))),
+        (item.hiddenFromPageManager || isSuperAdmin ||
+          (myPages
+            ? myPages.includes(item.href.replace("/app/", ""))
+            : !hiddenPages.includes(item.href.replace("/app/", ""))
+          )
+        ),
     ),
   })).filter((section) => section.items.length > 0);
 

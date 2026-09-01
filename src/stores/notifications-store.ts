@@ -13,6 +13,7 @@ interface NotificationsState {
   markAllRead: () => void;
   remove: (id: string) => void;
   unreadCount: () => number;
+  reset: () => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>()(
@@ -45,6 +46,7 @@ export const useNotificationsStore = create<NotificationsState>()(
       remove: (id) =>
         set((state) => ({ items: state.items.filter((n) => n.id !== id) })),
       unreadCount: () => get().items.filter((n) => !n.read).length,
+      reset: () => set({ items: [] }),
     }),
     {
       name: "ledgerflow:notifications",

@@ -19,6 +19,7 @@ export function MobileNav() {
   const unread = useNotificationsStore((s) => s.unreadCount());
   const locale = useLocaleStore((s) => s.locale);
   const hiddenPages = useSettingsStore((s) => s.hiddenPages);
+  const myPages = useSettingsStore((s) => s.myPages);
   const { t } = useT();
 
   const sections = NAV_SECTIONS.map((section) => ({
@@ -27,7 +28,12 @@ export function MobileNav() {
       (item) =>
         can(item.permission) &&
         (!item.superAdminOnly || isSuperAdmin) &&
-        (item.hiddenFromPageManager || !hiddenPages.includes(item.href.replace("/app/", ""))),
+        (item.hiddenFromPageManager || isSuperAdmin ||
+          (myPages
+            ? myPages.includes(item.href.replace("/app/", ""))
+            : !hiddenPages.includes(item.href.replace("/app/", ""))
+          )
+        ),
     ),
   })).filter((s) => s.items.length > 0);
 
