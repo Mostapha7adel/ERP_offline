@@ -85,7 +85,7 @@ export function registerSettingsController(app: FastifyInstance): void {
     return ok({ hiddenPages: hidden });
   });
 
-  typed.put("/settings/page-visibility", {
+  typed.post("/settings/page-visibility", {
     preHandler: requirePermission(PERMISSIONS["settings:update"]),
     schema: {
       description: "Update hidden pages list (admin only)",

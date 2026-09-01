@@ -2314,12 +2314,14 @@ export function periodCloseApi() {
 export function pageVisibilityApi() {
   return {
     async get(): Promise<string[]> {
-      const res = await api.get("/settings/page-visibility") as unknown as { data?: { hiddenPages?: string[] } };
-      return res?.data?.hiddenPages ?? [];
+      const raw: any = await api.get("/settings/page-visibility");
+      const hidden = raw?.data?.hiddenPages ?? raw?.hiddenPages;
+      return Array.isArray(hidden) ? hidden : [];
     },
     async update(hiddenPages: string[]): Promise<string[]> {
-      const res = await api.put("/settings/page-visibility", { hiddenPages }) as unknown as { data?: { hiddenPages?: string[] } };
-      return res?.data?.hiddenPages ?? [];
+      const raw: any = await api.post("/settings/page-visibility", { hiddenPages });
+      const result = raw?.data?.hiddenPages ?? raw?.hiddenPages;
+      return Array.isArray(result) ? result : [];
     },
   };
 }
