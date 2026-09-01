@@ -27,7 +27,7 @@ export function MobileNav() {
       (item) =>
         can(item.permission) &&
         (!item.superAdminOnly || isSuperAdmin) &&
-        !hiddenPages.includes(item.href.replace("/app/", "")),
+        (item.hiddenFromPageManager || !hiddenPages.includes(item.href.replace("/app/", ""))),
     ),
   })).filter((s) => s.items.length > 0);
 

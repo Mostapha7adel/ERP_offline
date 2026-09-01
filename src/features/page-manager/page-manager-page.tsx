@@ -32,14 +32,16 @@ export function PageManagerPage() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const allPages = NAV_SECTIONS.flatMap((section) =>
-    section.items.map((item) => ({
-      id: getPageId(item.href),
-      title: item.title,
-      titleAr: item.titleAr ?? item.title,
-      section: section.title,
-      sectionAr: section.titleAr ?? section.title,
-      icon: item.icon,
-    }))
+    section.items
+      .filter((item) => !item.hiddenFromPageManager)
+      .map((item) => ({
+        id: getPageId(item.href),
+        title: item.title,
+        titleAr: item.titleAr ?? item.title,
+        section: section.title,
+        sectionAr: section.titleAr ?? section.title,
+        icon: item.icon,
+      }))
   );
 
   const filteredPages = allPages.filter((page) => {

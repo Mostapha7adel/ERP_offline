@@ -107,7 +107,7 @@ export function Sidebar() {
       (item) =>
         can(item.permission) &&
         (!item.superAdminOnly || isSuperAdmin) &&
-        !hiddenPages.includes(item.href.replace("/app/", "")),
+        (item.hiddenFromPageManager || !hiddenPages.includes(item.href.replace("/app/", ""))),
     ),
   })).filter((section) => section.items.length > 0);
 

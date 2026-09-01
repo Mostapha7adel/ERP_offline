@@ -116,6 +116,8 @@ export interface NavItem {
   permission?: PermissionKey;
   /** When true only the super admin (wildcard) sees this item. */
   superAdminOnly?: boolean;
+  /** When true this item is excluded from the Page Manager toggle list. */
+  hiddenFromPageManager?: boolean;
   keywords: string;
 }
 

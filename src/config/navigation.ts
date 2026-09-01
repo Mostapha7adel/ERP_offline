@@ -428,6 +428,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: PanelLeftClose,
         permission: "settings.update",
         superAdminOnly: true,
+        hiddenFromPageManager: true,
         keywords: "page manager visibility hide show pages sidebar navigation",
       },
       {
